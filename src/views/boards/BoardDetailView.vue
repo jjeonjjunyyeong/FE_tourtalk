@@ -1,6 +1,12 @@
 <template>
   <div class="board-detail-view">
     <div class="container">
+      <!-- 알림 메시지 -->
+      <div v-if="message" :class="['alert', messageType === 'error' ? 'alert-danger' : 'alert-success']" role="alert">
+        <i :class="[messageType === 'error' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-check-circle-fill', 'me-2']"></i>
+        {{ message }}
+      </div>
+
       <!-- 로딩 상태 -->
       <div v-if="loading" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
@@ -41,7 +47,7 @@
 
           <!-- 게시글 내용 -->
           <div class="board-content mb-4">
-            <div v-html="board.content"></div>
+            <div v-html="sanitizeHTML(board.content)"></div>
           </div>
 
           <!-- 첨부 파일 -->
@@ -60,11 +66,33 @@
               <i class="bi bi-list me-1"></i> 목록
             </router-link>
             <div>
-              <router-link :to="`/boards/edit/${board.postId}`" class="btn btn-primary me-2">
+              <router-link 
+                v-if="isAuthor" 
+                :to="`/boards/edit/${board.postId}`" 
+                class="btn btn-primary me-2"
+              >
                 <i class="bi bi-pencil me-1"></i> 수정
               </router-link>
+              
+              <!-- 삭제 버튼 컴포넌트 -->
+              <delete-board-button 
+                :postId="board.postId"
+                :isAuthor="isAuthor"
+                @delete-success="onDeleteSuccess"
+                @delete-error="onDeleteError"
+              />
             </div>
           </div>
+        </div>
+      </div>
+      
+      <!-- 댓글 섹션 -->
+      <div v-if="board && !loading" class="card shadow-sm mt-4">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">댓글 <span class="badge bg-secondary">{{ board.commentCount || 0 }}</span></h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">댓글 기능은 아직 준비 중입니다.</p>
         </div>
       </div>
     </div>
@@ -72,17 +100,49 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import boardService from '@/services/board';
+import DeleteBoardButton from '@/components/board/DeleteBoardButton.vue';
+import authService from '@/services/auth';
 
 export default {
   name: 'BoardDetailView',
+  components: {
+    DeleteBoardButton
+  },
   setup() {
     const route = useRoute();
+    const router = useRouter();
     const board = ref(null);
     const loading = ref(true);
     const error = ref(null);
+    const message = ref('');
+    const messageType = ref('');
+
+    // 현재 사용자 정보 (실제 서비스에서는 로그인 정보 사용)
+    const currentUserId = ref(null);
+    
+    // 로그인 상태 확인 및 사용자 정보 로드
+    const checkAuthStatus = () => {
+      const isLoggedIn = authService.isLoggedIn();
+      if (isLoggedIn) {
+        // 실제 환경에서는 사용자 정보 API 호출 또는 토큰에서 정보 추출
+        try {
+          // JWT에서 사용자 ID 추출 또는 localStorage에서 가져오기
+          // 이 예제에서는 임시로 2 할당
+          currentUserId.value = 2;
+        } catch (e) {
+          console.error('사용자 정보 로드 실패:', e);
+        }
+      }
+    };
+
+    // 현재 사용자가 게시글 작성자인지 확인
+    const isAuthor = computed(() => {
+      if (!board.value || currentUserId.value === null) return false;
+      return board.value.writerId === currentUserId.value;
+    });
 
     // 임시로 사용자 정보를 저장 (실제로는 API 호출 또는 스토어에서 관리)
     const userMap = ref({
@@ -111,6 +171,16 @@ export default {
       return userMap.value[writerId] || `사용자#${writerId}`;
     };
 
+    // HTML 태그 필터링 (악의적인 스크립트 방지)
+    const sanitizeHTML = (html) => {
+      if (!html) return '';
+      
+      // 실제 프로덕션에서는 DOMPurify 등의 라이브러리 사용 권장
+      return html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/javascript:/gi, '');
+    };
+
     // 날짜 포맷팅
     const formatDate = (dateString) => {
       if (!dateString) return '';
@@ -123,6 +193,24 @@ export default {
       const minutes = String(date.getMinutes()).padStart(2, '0');
       
       return `${year}-${month}-${day} ${hours}:${minutes}`;
+    };
+
+    // 삭제 성공 처리
+    const onDeleteSuccess = () => {
+      message.value = '게시글이 성공적으로 삭제되었습니다.';
+      messageType.value = 'success';
+      
+      // 잠시 후 목록 페이지로 이동
+      setTimeout(() => {
+        router.push('/boards');
+      }, 1500);
+    };
+
+    // 삭제 오류 처리
+    const onDeleteError = (error) => {
+      message.value = '게시글 삭제 중 오류가 발생했습니다.';
+      messageType.value = 'error';
+      console.error('삭제 오류:', error);
     };
 
     // 게시글 상세 정보 조회
@@ -152,8 +240,9 @@ export default {
       }
     };
 
-    // 컴포넌트 마운트 시 데이터 조회
+    // 컴포넌트 마운트 시 실행
     onMounted(() => {
+      checkAuthStatus();
       fetchBoardDetail();
     });
 
@@ -161,9 +250,15 @@ export default {
       board,
       loading,
       error,
+      message,
+      messageType,
+      isAuthor,
       formatDate,
       getStatusLabel,
-      getWriterName
+      getWriterName,
+      sanitizeHTML,
+      onDeleteSuccess,
+      onDeleteError
     };
   }
 };
@@ -176,5 +271,16 @@ export default {
 
 .board-content {
   min-height: 300px;
+}
+
+/* 알림 메시지 애니메이션 */
+.alert {
+  transition: opacity 0.5s ease;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 </style>

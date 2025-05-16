@@ -48,7 +48,7 @@ const routes = [
     path: '/boards/write',
     name: 'BoardWrite',
     component: () => import('@/views/boards/BoardWriteView.vue'),
-    meta: { requiresAuth: false } // 로그인 여부에 따라 접근 가능
+    meta: { requiresAuth: false } // 로그인 여부에 따라 접근 가능 -> true 로 변경
   },
   {
     path: '/boards/:no',

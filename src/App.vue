@@ -14,6 +14,7 @@ import AppBanner from '@/components/common/AppBanner.vue';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
+// 활성화 된 컴포넌트 사용
 const route = useRoute();
 
 // 메인 페이지에서만 배너 표시

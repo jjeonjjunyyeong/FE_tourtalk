@@ -1,7 +1,7 @@
 <template>
   <div class="board-list-view">
     <div class="container">
-      <h2 class="mb-4">커뮤니티</h2> <!--기존 Q&A 게시판-->
+      <h2 class="mb-4">커뮤니티</h2>  <!--기존 Q&A 게시판으로 표기-->
 
       <!-- 검색 영역 -->
       <board-search-form @search="onSearch" />
@@ -10,10 +10,12 @@
       <div class="card shadow-sm">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
           <span class="fw-bold">게시글 목록</span>
+          <!--글쓰기 vue로 이동-->
           <router-link to="/boards/write" class="btn btn-primary btn-sm">
             <i class="bi bi-pencil me-1"></i>글쓰기
           </router-link>
         </div>
+        <!--게시글 리스트-->
         <div class="card-body p-0">
           <board-list
             :boardList="boardList"
@@ -41,8 +43,8 @@ export default {
     BoardList
   },
   setup() {
-    const route = useRoute();
-    const router = useRouter();
+    const route = useRoute(); // 현재 라우트 정보
+    const router = useRouter(); // 라우팅 제어 및 조작에 사용
     const boardList = ref([]);
     const pageInfo = ref(null);
     const loading = ref(false);

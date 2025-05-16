@@ -19,5 +19,10 @@ export default {
   // 게시글 수정
   updateBoard(postId, boardData) {
     return apiClient.put(`/boards/${postId}`, boardData);
+  },
+
+  deleteBoard(postId){
+    return apiClient.delete(`/boards/${postId}`);
   }
+
 };
