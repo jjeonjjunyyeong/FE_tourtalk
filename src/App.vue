@@ -18,6 +18,7 @@ const route = useRoute();
 
 // 메인 페이지에서만 배너 표시
 const showBanner = computed(() => route.name === 'Home');
+
 </script>
 
 <style>
