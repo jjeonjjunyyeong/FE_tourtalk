@@ -33,6 +33,9 @@
             <li class="nav-item">
               <router-link class="nav-link" to="/trip-plan" active-class="active">여행 계획</router-link>
             </li>
+            <li class="nav-item">
+              <router-link class="nav-link" to="/boards" active-class="active">커뮤니티</router-link>
+            </li>
           </ul>
 
           <!-- 인증 메뉴 -->

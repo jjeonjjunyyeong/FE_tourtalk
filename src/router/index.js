@@ -38,7 +38,29 @@ const routes = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFoundView.vue')
-  }
+  },
+  {
+    path: '/boards',
+    name: 'BoardList',
+    component: () => import('@/views/boards/BoardListView.vue')
+  },
+  {
+    path: '/boards/write',
+    name: 'BoardWrite',
+    component: () => import('@/views/boards/BoardWriteView.vue'),
+    meta: { requiresAuth: false } // 로그인 여부에 따라 접근 가능
+  },
+  {
+    path: '/boards/:no',
+    name: 'BoardDetail',
+    component: () => import('@/views/boards/BoardDetailView.vue')
+  },
+  {
+    path: '/boards/edit/:no',
+    name: 'BoardEdit',
+    component: () => import('@/views/boards/BoardWriteView.vue'),
+    meta: { requiresAuth: true }
+  },
 ];
 
 const router = createRouter({

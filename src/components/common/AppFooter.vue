@@ -21,14 +21,13 @@
         <div class="col-md-4">
           <h5 class="mb-3">연락처</h5>
           <ul class="list-unstyled text-white-50">
-            <li><i class="bi bi-geo-alt-fill me-2"></i> 광주광역시 북구 SSAFY</li>
+            <li><i class="bi bi-geo-alt-fill me-2"></i> SSAFY 광주캠퍼스</li>
             <li><i class="bi bi-envelope-fill me-2"></i> info@tourtalk.com</li>
-            <li><i class="bi bi-telephone-fill me-2"></i> +82 10-1234-5678</li>
+            <li><i class="bi bi-telephone-fill me-2"></i> 010-0000-0000</li>
           </ul>
 
           <div class="mt-3">
             <a href="#" class="text-white me-2"><i class="bi bi-facebook"></i></a>
-            <a href="#" class="text-white me-2"><i class="bi bi-twitter"></i></a>
             <a href="#" class="text-white me-2"><i class="bi bi-instagram"></i></a>
             <a href="#" class="text-white"><i class="bi bi-youtube"></i></a>
           </div>
@@ -39,7 +38,6 @@
 </template>
 
 <script setup>
-// 푸터는 간단하므로 특별한 로직이 필요 없습니다
 </script>
 
 <style scoped>
