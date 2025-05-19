@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import axios from 'axios';
+import { createPinia } from 'pinia';
 
 // Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -20,6 +21,10 @@ axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // 앱 생성
 const app = createApp(App);
+
+// Pinia 등록
+const pinia = createPinia();
+app.use(pinia);
 
 // 전역 속성으로 axios 등록
 app.config.globalProperties.$axios = axios;
