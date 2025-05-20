@@ -45,6 +45,11 @@ const routes = [
     component: () => import('@/views/register/RegisterCuratorView.vue')
   },
   {
+    path: '/profile',
+    name: 'MemberDetailView',
+    component: () => import('@/views/MemberDetailView.vue')
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFoundView.vue')

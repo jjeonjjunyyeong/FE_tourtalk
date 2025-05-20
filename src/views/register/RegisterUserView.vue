@@ -212,10 +212,12 @@ const checkIdAvailability = async () => {
   try {
     loading.value = true
     await new Promise(resolve => setTimeout(resolve, 300))
-    idAvailable.value = true // 실제 연동 필요 시 memberService.checkId(userData.id) 호출
+    const result = await memberService.checkIdAvailability(userData.id)
+    idAvailable.value = result.data.available 
     idChecked.value = true
   } catch (err) {
     idAvailable.value = false
+    idChecked.value = true
   } finally {
     loading.value = false
   }
