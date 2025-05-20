@@ -3,7 +3,7 @@ import apiClient from './api';
 export default {
   // 게시글 목록 조회 (페이지네이션, 검색 조건 적용)
   getBoardList(searchCondition) {
-    return apiClient.get('/boards', { params: searchCondition });
+    return apiClient.get('/boards/search', { params: searchCondition });
   },
 
   // 게시글 상세 조회
@@ -21,7 +21,8 @@ export default {
     return apiClient.put(`/boards/${postId}`, boardData);
   },
 
-  deleteBoard(postId){
+  // 게시글 삭제
+  softDeleteBoard(postId){
     return apiClient.delete(`/boards/${postId}`);
   }
 

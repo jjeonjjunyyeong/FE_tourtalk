@@ -77,13 +77,14 @@
 <script>
 import { ref, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import authService from '@/services/auth';
+import { useAuthStore } from '@/stores/authStore';
 
 export default {
   name: 'LoginView',
   setup() {
-    const router = useRouter();
-    const route = useRoute();
+const router = useRouter();
+const route = useRoute();
+const authStore = useAuthStore();
 
     // 로그인 상태
     const loading = ref(false);
@@ -108,15 +109,15 @@ export default {
         loading.value = true;
         message.value = '';
 
-        const response = await authService.login(credentials);
-
-        // 토큰 저장
-        localStorage.setItem('userToken', response.data.token);
-
-        // 리디렉션 처리
-        const redirectPath = route.query.redirect || '/';
-        router.push(redirectPath);
-
+        const success = await authStore.login(credentials.id, credentials.password);
+        if (success) {
+            const redirectPath = route.query.redirect || '/';
+            router.push(redirectPath);
+          } else {
+            message.value = '아이디 또는 비밀번호가 일치하지 않습니다.';
+            messageType.value = 'error';
+          }
+        loading.value = false;
       } catch (error) {
         console.error('로그인 실패:', error);
 

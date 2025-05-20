@@ -74,51 +74,43 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import authService from '@/services/auth';
+import { useAuthStore } from '@/stores/authStore';
 
 const router = useRouter();
-const isLoggedIn = ref(authService.isLoggedIn());
-const userNickname = ref('사용자');
-const logo = ref(null);
+const authStore = useAuthStore();
 
-// 로그인한 사용자 정보 가져오기
-const fetchUserProfile = async () => {
-  if (isLoggedIn.value) {
-    try {
-      const response = await authService.getProfile();
-      userNickname.value = response.data.nickname || '사용자';
-    } catch (error) {
-      console.error('사용자 정보를 가져오는데 실패했습니다.', error);
-    }
-  }
-};
+// 전역 상태로부터 로그인 여부와 닉네임 가져오기
+const isLoggedIn = computed(() => authStore.isLogin);
+const userNickname = computed(() => authStore.nickname);
+const logo = ref(null);
 
 // 로그아웃 처리
 const onLogout = async () => {
   try {
-    await authService.logout();
-    isLoggedIn.value = false;
+    await authStore.logout(); // 상태 초기화 + 쿠키 제거
+    alert('로그아웃되었습니다.');
     router.push('/');
   } catch (error) {
-    console.error('로그아웃 처리 중 오류가 발생했습니다.', error);
+    console.error('로그아웃 처리 중 오류:', error);
   }
 };
 
 // 컴포넌트 마운트 시 실행
 onMounted(() => {
-  fetchUserProfile();
+  authStore.checkLogin(); // 새로고침 시 상태 복원
 
   // 로고 이미지가 있는지 확인
   try {
-    // 이미지가 없을 경우 에러가 발생할 수 있으므로 try-catch로 처리
+        // 이미지가 없을 경우 에러가 발생할 수 있으므로 try-catch로 처리
     // 실제 프로젝트에서는 이미지 경로를 적절히 조정하세요
     logo.value = null;
   } catch (e) {
     logo.value = null;
   }
 });
+
 </script>
 
 <style scoped>

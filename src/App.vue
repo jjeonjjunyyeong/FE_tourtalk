@@ -13,12 +13,21 @@ import AppFooter from '@/components/common/AppFooter.vue';
 import AppBanner from '@/components/common/AppBanner.vue';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { onMounted } from 'vue';
+import { useAuthStore } from '@/stores/authStore';
 
 // 활성화 된 컴포넌트 사용
 const route = useRoute();
 
 // 메인 페이지에서만 배너 표시
 const showBanner = computed(() => route.name === 'Home');
+
+// 로그인 상태
+const authStore = useAuthStore();
+
+onMounted(() => {
+  authStore.checkLogin(); // 앱 로드시 로그인 상태 복원
+});
 
 </script>
 

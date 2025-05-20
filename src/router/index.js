@@ -31,8 +31,18 @@ const routes = [
   },
   {
     path: '/register',
-    name: 'Register',
-    component: () => import('@/views/RegisterView.vue')
+    name: 'RegisterSelect',
+    component: () => import('@/views/register/RegisterTypeSelectView.vue')
+  },
+  {
+    path: '/register/user',
+    name: 'RegisterUser',
+    component: () => import('@/views/register/RegisterUserView.vue')
+  },
+   {
+    path: '/register/curator',
+    name: 'RegisterCurator',
+    component: () => import('@/views/register/RegisterCuratorView.vue')
   },
   {
     path: '/:pathMatch(.*)*',
