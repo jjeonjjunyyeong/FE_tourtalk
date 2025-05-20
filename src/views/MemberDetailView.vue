@@ -5,7 +5,9 @@
     <div class="card shadow p-4 rounded-4">
       <div class="row">
         <!-- 왼쪽 : 프로필 + 아이디/닉네임 -->
-        <div class="col-md-3 d-flex flex-column align-items-center justify-content-start border-end">
+        <div
+          class="col-md-3 d-flex flex-column align-items-center justify-content-start border-end"
+        >
           <div class="profile-wrapper mb-3">
             <img
               v-if="member.profileImgPath"
@@ -21,7 +23,7 @@
             @change="handleProfileUpload"
             accept="image/*"
             class="form-control form-control-sm mb-3"
-            style="width: 90%;"
+            style="width: 90%"
           />
 
           <div class="info-box w-100 text-center">
@@ -50,9 +52,19 @@
           </div>
 
           <div v-if="member.role === 'CURATOR'" class="info-box">
+            <label>자격증 번호</label>
+            <div class="info-value">{{ member.curatorNo }}</div>
+          </div>
+
+          <div v-if="member.role === 'CURATOR'" class="info-box">
             <label>자격증 이미지</label>
             <div class="info-value text-center">
-              <img :src="`${apiBase}/${member.curatorImg}`" alt="자격증" class="img-thumbnail" style="max-width: 140px;" />
+              <img
+                :src="`${apiBase}/${member.curatorImg}`"
+                alt="자격증"
+                class="img-thumbnail"
+                style="max-width: 140px"
+              />
             </div>
           </div>
         </div>
@@ -65,7 +77,6 @@
     </div>
   </div>
 </template>
-
 
 <script setup>
 import { ref, onMounted } from 'vue'
@@ -82,14 +93,13 @@ const centerFields = {
   email: '이메일',
   phone: '전화번호',
   gender: '성별',
-  birthDate: '생년월일'
+  birthDate: '생년월일',
 }
 
 const rightFields = {
   address: '주소',
-  role: '역할',
+  role: '등급',
   status: '상태',
-  curatorNo: '자격증 번호'
 }
 
 const formatField = (key) => {
@@ -106,7 +116,13 @@ const formatField = (key) => {
     case 'role':
       return val === 'CURATOR' ? '학예사' : val === 'ADMIN' ? '관리자' : '일반회원'
     case 'status':
-      return val === 'ACTIVE' ? '정상' : val === 'SUSPENDED' ? '정지' : val === 'PENDING' ? '승인 대기' : '탈퇴'
+      return val === 'ACTIVE'
+        ? '정상'
+        : val === 'SUSPENDED'
+        ? '정지'
+        : val === 'PENDING'
+        ? '승인 대기'
+        : '탈퇴'
     default:
       return val
   }
@@ -117,12 +133,20 @@ const handleProfileUpload = async (e) => {
   const file = e.target.files[0]
   if (!file) return
 
+  const type = 'members'
+
   try {
-    const result = await fileService.upload(file)
-    member.value.profileImgPath = result.filePath
-    alert('프로필 이미지가 업로드되었습니다.')
+    // 업로드 요청
+    const result = await fileService.upload(file, type)
+    const filePath = result.filePath
+
+    // DB 저장 요청
+    await memberService.updateProfileImg(filePath)
+
+    // 화면 갱신
+    member.value.profileImgPath = filePath
+    alert('프로필 이미지가 업로드 및 저장되었습니다.')
   } catch (err) {
-    console.error('프로필 업로드 실패:', err)
     alert('업로드에 실패했습니다.')
   }
 }
@@ -132,7 +156,6 @@ onMounted(async () => {
     const response = await memberService.getMyInfo()
     member.value = response.data
   } catch (err) {
-    console.error(err)
     alert('회원 정보를 불러오는 데 실패했습니다.')
   }
 })
@@ -141,7 +164,6 @@ const goToEdit = () => {
   router.push('/member/edit')
 }
 </script>
-
 
 <style scoped>
 .profile-wrapper {
@@ -183,5 +205,4 @@ const goToEdit = () => {
   font-size: 0.95rem;
   color: #212529;
 }
-
 </style>
