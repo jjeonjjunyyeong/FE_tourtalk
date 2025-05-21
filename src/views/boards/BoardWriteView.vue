@@ -27,11 +27,11 @@
 
             <div class="mb-3">
               <label for="category" class="form-label">카테고리</label>
-              <select v-model="boardForm.categoryId" class="form-select" required>
+              <select v-model="boardForm.category" class="form-select" required>
                 <option disabled value="">카테고리를 선택하세요</option>
-                <option value="1">자유게시판</option>
-                <option value="2">Q&A</option>
-                <option value="3">공지사항</option>
+                <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
               </select>
             </div>
 
@@ -114,12 +114,16 @@
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import boardService from '@/services/board'
 import fileService from '@/services/file'
 
 export default {
   name: 'BoardWriteView',
   setup() {
+    const authStore = useAuthStore()
+    const userRole = computed(() => authStore.role)
+
     const route = useRoute()
     const router = useRouter()
 
@@ -128,11 +132,23 @@ export default {
     const messageType = ref('')
     const selectedFile = ref(null)
 
+    const categoryOptions = computed(() => {
+      const base = [
+        { value: 'FREE', label: '자유게시판' },
+        { value: 'QNA', label: 'Q&A' },
+        { value: 'INQUIRY', label: '문의' },
+      ]
+      if (userRole.value === 'ADMIN') {
+        return [{ value: 'NOTICE', label: '공지사항' }, ...base]
+      }
+      return base
+    })
+
     const boardForm = reactive({
       postId: null,
       title: '',
       content: '',
-      categoryId: '',
+      category: '',
       status: '',
       filePath: '',
     })
@@ -164,7 +180,7 @@ export default {
         const response = await boardService.createBoard(boardForm)
         message.value = '게시글이 등록되었습니다.'
         messageType.value = 'success'
-        setTimeout(() => router.push(`/boards/${response.data.postId}`), 1000)
+        setTimeout(() => router.push(`/boards`), 1000)
       } catch (error) {
         message.value = '게시글 등록에 실패했습니다.'
         messageType.value = 'error'
@@ -237,6 +253,7 @@ export default {
       handleFileUpload,
       getFileNameFromPath,
       removeFile,
+      categoryOptions,
     }
   },
 }

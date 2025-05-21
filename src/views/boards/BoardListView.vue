@@ -59,7 +59,7 @@ export default {
       orderDirection: route.query.orderDirection || 'DESC',
       pageNumber: parseInt(route.query.page) || 1,
       pageSize: parseInt(route.query.size) || 10,
-      categoryId: 1, // QnA 게시판 카테고리 ID (백엔드와 협의 필요)
+      category: route.query.category || 'FREE',
     })
 
     // 게시글 목록 조회
@@ -103,7 +103,7 @@ export default {
         query.orderDirection = searchCondition.orderDirection
       if (searchCondition.pageNumber > 1) query.page = searchCondition.pageNumber
       if (searchCondition.pageSize !== 10) query.size = searchCondition.pageSize
-
+      if (searchCondition.category) query.category = searchCondition.category
       // 현재 경로를 유지하면서 쿼리만 업데이트
       router.replace({
         path: route.path,
