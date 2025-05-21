@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '@/views/HomeView.vue';
+import { useAuthStore } from '@/stores/authStore'
 
 const routes = [
   {
@@ -83,13 +84,22 @@ const router = createRouter({
   }
 });
 
-// 네비게이션 가드를 사용하여 인증이 필요한 페이지 처리
-router.beforeEach((to, from, next) => {
-  const isLoggedIn = localStorage.getItem('userToken') !== null;
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
 
-  if (to.matched.some(record => record.meta.requiresAuth) && !isLoggedIn) {
-    // 로그인이 필요한 페이지인데 로그인되어 있지 않은 경우
-    next({ name: 'Login', query: { redirect: to.fullPath } });
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    try {
+      const isLoggedIn = await authStore.checkLogin();
+
+      if (isLoggedIn) {
+        next();
+      } else {
+        next({ name: 'Login', query: { redirect: to.fullPath } });
+      }
+    } catch (error) {
+      console.error('로그인 상태 확인 실패:', error);
+      next({ name: 'Login', query: { redirect: to.fullPath } });
+    }
   } else {
     next();
   }

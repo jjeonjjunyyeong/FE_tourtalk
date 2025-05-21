@@ -295,7 +295,7 @@ export default {
     const addToTripPlan = () => {
       if (!attraction.value) return;
 
-      // 로컬 스토리지에 저장
+      // 이 형식으로 저장된 데이터가...
       const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
 
       // 중복 방지
