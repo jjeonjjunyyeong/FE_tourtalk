@@ -87,10 +87,13 @@ export default {
         loading.value = true
         const { data } = await attractionService.getPopularAttractions(props.limit)
 
+        console.log('🔥 API 응답 데이터:', data)
+
         // 순위 추가
         popularAttractions.value = data.map((item, index) => ({
           ...item,
           rank: index + 1,
+          firstImage1: item.first_image1,
         }))
       } catch (error) {
         console.error('인기 관광지 조회 실패:', error)
