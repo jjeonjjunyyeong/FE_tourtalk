@@ -9,6 +9,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  define: {
+    // 파일 업로드 경로
+    __API_BASE_URL__: JSON.stringify('http://localhost:8080'), 
+  },
   server: {
     port: 5173
   },

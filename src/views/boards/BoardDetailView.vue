@@ -2,8 +2,17 @@
   <div class="board-detail-view">
     <div class="container">
       <!-- 알림 메시지 -->
-      <div v-if="message" :class="['alert', messageType === 'error' ? 'alert-danger' : 'alert-success']" role="alert">
-        <i :class="[messageType === 'error' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-check-circle-fill', 'me-2']"></i>
+      <div
+        v-if="message"
+        :class="['alert', messageType === 'error' ? 'alert-danger' : 'alert-success']"
+        role="alert"
+      >
+        <i
+          :class="[
+            messageType === 'error' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-check-circle-fill',
+            'me-2',
+          ]"
+        ></i>
         {{ message }}
       </div>
 
@@ -34,13 +43,16 @@
         <div class="card-body">
           <div class="mb-3 d-flex justify-content-between border-bottom pb-3">
             <div>
-              <span class="fw-bold me-2">작성자:</span> {{ getWriterName(board.writerId) }}
+              <span class="fw-bold me-2">작성자:</span>
+              {{ board.writerUserId || `사용자#${board.writerId}` }}
               <span v-if="board.status !== 'ACTIVE'" class="ms-2 badge bg-warning">
                 {{ getStatusLabel(board.status) }}
               </span>
             </div>
             <div>
-              <span class="me-3"><i class="bi bi-calendar-date me-1"></i> {{ formatDate(board.createdAt) }}</span>
+              <span class="me-3"
+                ><i class="bi bi-calendar-date me-1"></i> {{ formatDate(board.createdAt) }}</span
+              >
               <span><i class="bi bi-eye me-1"></i> {{ board.viewCount }}</span>
             </div>
           </div>
@@ -66,16 +78,16 @@
               <i class="bi bi-list me-1"></i> 목록
             </router-link>
             <div>
-              <router-link 
-                v-if="isAuthor" 
-                :to="`/boards/edit/${board.postId}`" 
+              <router-link
+                v-if="isAuthor"
+                :to="`/boards/edit/${board.postId}`"
                 class="btn btn-primary me-2"
               >
                 <i class="bi bi-pencil me-1"></i> 수정
               </router-link>
-              
+
               <!-- 삭제 버튼 컴포넌트 -->
-              <delete-board-button 
+              <delete-board-button
                 :postId="board.postId"
                 :isAuthor="isAuthor"
                 @delete-success="onDeleteSuccess"
@@ -85,11 +97,13 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 댓글 섹션 -->
       <div v-if="board && !loading" class="card shadow-sm mt-4">
         <div class="card-header bg-light">
-          <h5 class="mb-0">댓글 <span class="badge bg-secondary">{{ board.commentCount || 0 }}</span></h5>
+          <h5 class="mb-0">
+            댓글 <span class="badge bg-secondary">{{ board.commentCount || 0 }}</span>
+          </h5>
         </div>
         <div class="card-body">
           <p class="text-muted">댓글 기능은 아직 준비 중입니다.</p>
@@ -100,151 +114,136 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import boardService from '@/services/board';
-import DeleteBoardButton from '@/components/board/DeleteBoardButton.vue';
-import authService from '@/services/auth';
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import boardService from '@/services/board'
+import DeleteBoardButton from '@/components/board/DeleteBoardButton.vue'
 
 export default {
   name: 'BoardDetailView',
   components: {
-    DeleteBoardButton
+    DeleteBoardButton,
   },
   setup() {
-    const route = useRoute();
-    const router = useRouter();
-    const board = ref(null);
-    const loading = ref(true);
-    const error = ref(null);
-    const message = ref('');
-    const messageType = ref('');
+    const route = useRoute()
+    const router = useRouter()
+    const board = ref(null)
+    const loading = ref(true)
+    const error = ref(null)
+    const message = ref('')
+    const messageType = ref('')
+    const authStore = useAuthStore()
 
-    // 현재 사용자 정보 (실제 서비스에서는 로그인 정보 사용)
-    const currentUserId = ref(null);
-    
+    // 현재 사용자 정보
+    const currentUserId = computed(() => authStore.mno)
+
     // 로그인 상태 확인 및 사용자 정보 로드
     const checkAuthStatus = () => {
-      const isLoggedIn = authService.isLoggedIn();
-      if (isLoggedIn) {
-        // 실제 환경에서는 사용자 정보 API 호출 또는 토큰에서 정보 추출
-        try {
-          // JWT에서 사용자 ID 추출 또는 localStorage에서 가져오기
-          // 이 예제에서는 임시로 2 할당
-          currentUserId.value = 2;
-        } catch (e) {
-          console.error('사용자 정보 로드 실패:', e);
-        }
+      if (!authStore.isLogin) {
+        alert('로그인이 필요합니다.')
+        router.push('/login')
       }
-    };
+    }
 
     // 현재 사용자가 게시글 작성자인지 확인
     const isAuthor = computed(() => {
-      if (!board.value || currentUserId.value === null) return false;
-      return board.value.writerId === currentUserId.value;
-    });
-
-    // 임시로 사용자 정보를 저장 (실제로는 API 호출 또는 스토어에서 관리)
-    const userMap = ref({
-      1: '관리자',
-      2: '홍길동',
-      3: '김철수'
-      // 실제 환경에서는 API를 통해 사용자 정보를 가져오는 것이 좋음
-    });
+      return String(board.value?.writerId) === String(currentUserId.value)
+    })
 
     // 게시글 상태 레이블 반환
     const getStatusLabel = (status) => {
       switch (status) {
         case 'ACTIVE':
-          return '공개';
+          return '공개'
         case 'INACTIVE':
-          return '비공개';
+          return '비공개'
         case 'DELETED':
-          return '삭제됨';
+          return '삭제됨'
         default:
-          return '알 수 없음';
+          return '알 수 없음'
       }
-    };
+    }
 
     // 작성자 ID로 이름 찾기 (실제로는 API 호출 또는 스토어에서 처리)
-    const getWriterName = (writerId) => {
-      return userMap.value[writerId] || `사용자#${writerId}`;
-    };
+    const getWriterName = () => {
+      return board.value?.writerNickname || `사용자#${board.value?.writerId}`
+    }
 
     // HTML 태그 필터링 (악의적인 스크립트 방지)
     const sanitizeHTML = (html) => {
-      if (!html) return '';
-      
+      if (!html) return ''
+
       // 실제 프로덕션에서는 DOMPurify 등의 라이브러리 사용 권장
       return html
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/javascript:/gi, '');
-    };
+        .replace(/javascript:/gi, '')
+    }
 
     // 날짜 포맷팅
     const formatDate = (dateString) => {
-      if (!dateString) return '';
-      
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      
-      return `${year}-${month}-${day} ${hours}:${minutes}`;
-    };
+      if (!dateString) return ''
+
+      const date = new Date(dateString)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+
+      return `${year}-${month}-${day} ${hours}:${minutes}`
+    }
 
     // 삭제 성공 처리
     const onDeleteSuccess = () => {
-      message.value = '게시글이 성공적으로 삭제되었습니다.';
-      messageType.value = 'success';
-      
+      message.value = '게시글이 성공적으로 삭제되었습니다.'
+      messageType.value = 'success'
+
       // 잠시 후 목록 페이지로 이동
       setTimeout(() => {
-        router.push('/boards');
-      }, 1500);
-    };
+        router.push('/boards')
+      }, 1500)
+    }
 
     // 삭제 오류 처리
     const onDeleteError = (error) => {
-      message.value = '게시글 삭제 중 오류가 발생했습니다.';
-      messageType.value = 'error';
-      console.error('삭제 오류:', error);
-    };
+      message.value = '게시글 삭제 중 오류가 발생했습니다.'
+      messageType.value = 'error'
+      console.error('삭제 오류:', error)
+    }
 
     // 게시글 상세 정보 조회
     const fetchBoardDetail = async () => {
-      const postId = Number(route.params.no);
+      const postId = Number(route.params.no)
       if (isNaN(postId)) {
-        error.value = '잘못된 게시글 ID 입니다.';
-        loading.value = false;
-        return;
+        error.value = '잘못된 게시글 ID 입니다.'
+        loading.value = false
+        return
       }
 
       try {
-        loading.value = true;
-        const { data } = await boardService.getBoardDetail(postId);
+        loading.value = true
+        const { data } = await boardService.getBoardDetail(postId)
 
         if (!data) {
-          error.value = '게시글 정보를 찾을 수 없습니다.';
-          return;
+          error.value = '게시글 정보를 찾을 수 없습니다.'
+          return
         }
 
-        board.value = data;
+        board.value = data
       } catch (err) {
-        console.error('게시글 상세 정보 조회 실패:', err);
-        error.value = '게시글 정보를 불러오는데 실패했습니다.';
+        console.error('게시글 상세 정보 조회 실패:', err)
+        error.value = '게시글 정보를 불러오는데 실패했습니다.'
       } finally {
-        loading.value = false;
+        loading.value = false
       }
-    };
+    }
 
     // 컴포넌트 마운트 시 실행
     onMounted(() => {
-      checkAuthStatus();
-      fetchBoardDetail();
-    });
+      checkAuthStatus()
+      fetchBoardDetail()
+    })
 
     return {
       board,
@@ -258,10 +257,10 @@ export default {
       getWriterName,
       sanitizeHTML,
       onDeleteSuccess,
-      onDeleteError
-    };
-  }
-};
+      onDeleteError,
+    }
+  },
+}
 </script>
 
 <style scoped>
@@ -280,7 +279,11 @@ export default {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>

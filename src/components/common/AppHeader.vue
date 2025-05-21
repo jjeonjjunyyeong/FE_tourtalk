@@ -4,7 +4,7 @@
       <div class="container">
         <!-- 로고 -->
         <router-link class="navbar-brand" to="/">
-          <img src="@/assets/images/logo.png" alt="TourTalk Logo" height="40" v-if="logo">
+          <img src="@/assets/images/logo.png" alt="TourTalk Logo" height="40" v-if="logo" />
           <span v-else class="h4 mb-0 text-primary font-weight-bold">TourTalk</span>
         </router-link>
 
@@ -28,13 +28,19 @@
               <router-link class="nav-link" to="/" active-class="active">홈</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/attractions" active-class="active">여행지 검색</router-link>
+              <router-link class="nav-link" to="/attractions" active-class="active"
+                >여행지 검색</router-link
+              >
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/trip-plan" active-class="active">여행 계획</router-link>
+              <router-link class="nav-link" to="/trip-plan" active-class="active"
+                >여행 계획</router-link
+              >
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/boards" active-class="active">커뮤니티</router-link>
+              <router-link class="nav-link" to="/boards" active-class="active"
+                >커뮤니티</router-link
+              >
             </li>
           </ul>
 
@@ -63,7 +69,9 @@
                 <router-link class="nav-link" to="/login">로그인</router-link>
               </li>
               <li class="nav-item">
-                <router-link class="btn btn-primary btn-sm mt-1" to="/register">회원가입</router-link>
+                <router-link class="btn btn-primary btn-sm mt-1" to="/register"
+                  >회원가입</router-link
+                >
               </li>
             </template>
           </ul>
@@ -74,43 +82,42 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
+import { computed, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 
-const router = useRouter();
-const authStore = useAuthStore();
+const router = useRouter()
+const authStore = useAuthStore()
 
 // 전역 상태로부터 로그인 여부와 닉네임 가져오기
-const isLoggedIn = computed(() => authStore.isLogin);
-const userNickname = computed(() => authStore.nickname);
-const logo = ref(null);
+const isLoggedIn = computed(() => authStore.isLogin)
+const userNickname = computed(() => authStore.nickname)
+const logo = ref(null)
 
 // 로그아웃 처리
 const onLogout = async () => {
   try {
-    await authStore.logout(); // 상태 초기화 + 쿠키 제거
-    alert('로그아웃되었습니다.');
-    router.push('/');
+    await authStore.logout() // 상태 초기화 + 쿠키 제거
+    alert('로그아웃되었습니다.')
+    router.push('/')
   } catch (error) {
-    console.error('로그아웃 처리 중 오류:', error);
+    console.error('로그아웃 처리 중 오류:', error)
   }
-};
+}
 
 // 컴포넌트 마운트 시 실행
 onMounted(() => {
-  authStore.checkLogin(); // 새로고침 시 상태 복원
+  authStore.checkLogin() // 새로고침 시 상태 복원
 
   // 로고 이미지가 있는지 확인
   try {
-        // 이미지가 없을 경우 에러가 발생할 수 있으므로 try-catch로 처리
+    // 이미지가 없을 경우 에러가 발생할 수 있으므로 try-catch로 처리
     // 실제 프로젝트에서는 이미지 경로를 적절히 조정하세요
-    logo.value = null;
+    logo.value = null
   } catch (e) {
-    logo.value = null;
+    logo.value = null
   }
-});
-
+})
 </script>
 
 <style scoped>
