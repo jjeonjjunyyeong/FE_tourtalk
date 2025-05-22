@@ -166,13 +166,13 @@
             </div>
           </div>
 
-          <!-- Toast Container -->
-          <div class="toast-container position-fixed bottom-0 end-0 p-3">
-            <div ref="toastElement" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+          <!-- Toast Container - Custom Toast -->
+          <div v-if="showToastMessage" class="custom-toast-container">
+            <div class="custom-toast" :class="{ 'show': showToastMessage }">
               <div class="toast-header">
                 <i class="bi bi-info-circle text-primary me-2"></i>
                 <strong class="me-auto">여행 계획</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close" @click="hideToast"></button>
               </div>
               <div class="toast-body">
                 {{ toastMessage }}
@@ -206,8 +206,8 @@ export default {
     const error = ref(null);
     const map = ref(null);
     const isAddedToPlan = ref(false);
-    const toastElement = ref(null);
     const toastMessage = ref('');
+    const showToastMessage = ref(false);
 
     // HTML 태그 필터링 (악의적인 스크립트 방지)
     const sanitizeHTML = (html) => {
@@ -318,14 +318,17 @@ export default {
     // 토스트 보여주기
     const showToast = () => {
       toastMessage.value = generateToastMessage();
+      showToastMessage.value = true;
       
-      if (toastElement.value) {
-        // Bootstrap Toast 인스턴스 생성 및 보여주기
-        const toast = new window.bootstrap.Toast(toastElement.value, {
-          delay: 2000 // 2초
-        });
-        toast.show();
-      }
+      // 2초 후 자동으로 숨기기
+      setTimeout(() => {
+        showToastMessage.value = false;
+      }, 2000);
+    };
+
+    // 토스트 숨기기
+    const hideToast = () => {
+      showToastMessage.value = false;
     };
 
     // 여행 계획 추가/삭제 토글
@@ -376,10 +379,11 @@ export default {
       loading,
       error,
       isAddedToPlan,
-      toastElement,
       toastMessage,
+      showToastMessage,
       sanitizeHTML,
-      toggleTripPlan
+      toggleTripPlan,
+      hideToast
     };
   }
 };
@@ -486,5 +490,65 @@ export default {
 .nearby-item:hover {
   background-color: #f8f9fa;
   border-radius: 0.25rem;
+}
+
+/* 커스텀 Toast 스타일 */
+.custom-toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1050;
+}
+
+.custom-toast {
+  min-width: 300px;
+  max-width: 400px;
+  background-color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 0.375rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s ease-in-out;
+}
+
+.custom-toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.custom-toast .toast-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  color: #6c757d;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-top-left-radius: calc(0.375rem - 1px);
+  border-top-right-radius: calc(0.375rem - 1px);
+}
+
+.custom-toast .toast-body {
+  padding: 0.75rem;
+  word-wrap: break-word;
+}
+
+.custom-toast .btn-close {
+  padding: 0.25rem 0.25rem;
+  margin: -0.125rem -0.125rem -0.125rem auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0.375rem;
+  opacity: 0.5;
+  width: 1em;
+  height: 1em;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23000'%3e%3cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 1em;
+}
+
+.custom-toast .btn-close:hover {
+  opacity: 0.75;
 }
 </style>
