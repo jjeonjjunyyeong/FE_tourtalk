@@ -155,14 +155,28 @@
             <div class="card-body">
               <h5>여행 계획에 추가하기</h5>
               <p class="text-muted small">이 관광지를 여행 계획에 추가하고 일정을 계획해보세요.</p>
-              <router-link
-                to="/trip-plan"
-                class="btn btn-primary d-block"
-                @click="addToTripPlan"
+              <button
+                class="btn d-block"
+                :class="isAddedToPlan ? 'btn-danger' : 'btn-primary'"
+                @click="toggleTripPlan"
               >
-                <i class="bi bi-plus-circle me-2"></i>
-                여행 계획에 추가
-              </router-link>
+                <i :class="isAddedToPlan ? 'bi bi-trash me-2' : 'bi bi-plus-circle me-2'"></i>
+                {{ isAddedToPlan ? '일정에서 삭제' : '여행 계획에 추가' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Toast Container -->
+          <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div ref="toastElement" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+              <div class="toast-header">
+                <i class="bi bi-info-circle text-primary me-2"></i>
+                <strong class="me-auto">여행 계획</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+              <div class="toast-body">
+                {{ toastMessage }}
+              </div>
             </div>
           </div>
         </div>
@@ -172,7 +186,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import attractionService from '@/services/attraction';
 
@@ -191,6 +205,9 @@ export default {
     const loading = ref(true);
     const error = ref(null);
     const map = ref(null);
+    const isAddedToPlan = ref(false);
+    const toastElement = ref(null);
+    const toastMessage = ref('');
 
     // HTML 태그 필터링 (악의적인 스크립트 방지)
     const sanitizeHTML = (html) => {
@@ -291,23 +308,64 @@ export default {
       infowindow.open(map.value, marker);
     };
 
-    // 여행 계획에 추가
-    const addToTripPlan = () => {
-      if (!attraction.value) return;
-
-      // 이 형식으로 저장된 데이터가...
+    // 토스트 메시지 생성
+    const generateToastMessage = () => {
       const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
+      const attractionNames = tripPlan.attractions.map(attr => attr.title).join(', ');
+      return `등록된 일정 : ${attractionNames || '없음'}`;
+    };
 
-      // 중복 방지
-      const exists = tripPlan.attractions.some(item => item.no === attraction.value.no);
-      if (!exists) {
-        tripPlan.attractions.push(attraction.value);
-        localStorage.setItem('tripPlan', JSON.stringify(tripPlan));
-        alert('여행 계획에 추가되었습니다.');
-      } else {
-        alert('이미 여행 계획에 추가된 관광지입니다.');
+    // 토스트 보여주기
+    const showToast = () => {
+      toastMessage.value = generateToastMessage();
+      
+      if (toastElement.value) {
+        // Bootstrap Toast 인스턴스 생성 및 보여주기
+        const toast = new window.bootstrap.Toast(toastElement.value, {
+          delay: 2000 // 2초
+        });
+        toast.show();
       }
     };
+
+    // 여행 계획 추가/삭제 토글
+    const toggleTripPlan = () => {
+      if (!attraction.value) return;
+
+      const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
+      const existingIndex = tripPlan.attractions.findIndex(item => item.no === attraction.value.no);
+
+      if (existingIndex !== -1) {
+        // 이미 추가된 경우 - 삭제
+        tripPlan.attractions.splice(existingIndex, 1);
+        localStorage.setItem('tripPlan', JSON.stringify(tripPlan));
+        isAddedToPlan.value = false;
+      } else {
+        // 추가되지 않은 경우 - 추가
+        tripPlan.attractions.push(attraction.value);
+        localStorage.setItem('tripPlan', JSON.stringify(tripPlan));
+        isAddedToPlan.value = true;
+      }
+
+      // 토스트 메시지 보여주기
+      showToast();
+    };
+
+    // 여행 계획 추가 상태 확인
+    const checkTripPlanStatus = () => {
+      if (!attraction.value) return;
+
+      const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
+      const exists = tripPlan.attractions.some(item => item.no === attraction.value.no);
+      isAddedToPlan.value = exists;
+    };
+
+    // attraction 값이 변경될 때 여행 계획 상태 확인
+    watch(attraction, (newAttraction) => {
+      if (newAttraction) {
+        checkTripPlanStatus();
+      }
+    });
 
     // 컴포넌트 마운트 시 데이터 조회
     onMounted(fetchAttractionDetail);
@@ -317,8 +375,11 @@ export default {
       nearbyAttractions,
       loading,
       error,
+      isAddedToPlan,
+      toastElement,
+      toastMessage,
       sanitizeHTML,
-      addToTripPlan
+      toggleTripPlan
     };
   }
 };
