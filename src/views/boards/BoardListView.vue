@@ -57,53 +57,47 @@ export default {
     })
 
     const fetchBoardList = async () => {
-  try {
-    loading.value = true
-    updateQueryString()
+      try {
+        loading.value = true
+        updateQueryString()
 
-    let data
-    const isSearch = searchCondition.keyword?.trim().length > 0 || searchCondition.keywordType?.trim().length > 0
-    console.log('🔍 API 선택 조건:', {
-  keyword: searchCondition.keyword,
-  keywordType: searchCondition.keywordType,
-  status: searchCondition.status,
-})
+        let data
+        const isSearch =
+          searchCondition.keyword?.trim().length > 0 ||
+          searchCondition.keywordType?.trim().length > 0
 
-    if (isSearch) {
-      console.log('➡ 호출: /boards/search')
-      const res = await boardService.getBoardSearch(searchCondition)
-      data = res.data
-    } else {
-      console.log('➡ 호출: /boards/list')
-      const res = await boardService.getBoardList({
-        pageNumber: searchCondition.pageNumber,
-        pageSize: searchCondition.pageSize,
-        status: searchCondition.status,
-      })
-      console.log('📦 게시글 응답 데이터:', res.data)
-      data = res.data
+        if (isSearch) {
+          const res = await boardService.getBoardSearch(searchCondition)
+          data = res.data
+        } else {
+          const params = {
+            pageNumber: searchCondition.pageNumber,
+            pageSize: searchCondition.pageSize,
+            ...(searchCondition.status && { status: searchCondition.status }),
+          }
+          const res = await boardService.getBoardList(params)
+          data = res.data
+        }
+
+        boardList.value = data.content || []
+        pageInfo.value = {
+          pageNumber: data.pageNumber,
+          pageSize: data.pageSize,
+          totalPages: data.totalPages,
+          totalElements: data.totalElements,
+          first: data.first,
+          last: data.last,
+          startPage: data.startPage,
+          endPage: data.endPage,
+        }
+      } catch (error) {
+        console.error('게시글 목록 조회 실패:', error)
+        boardList.value = []
+        pageInfo.value = null
+      } finally {
+        loading.value = false
+      }
     }
-
-    boardList.value = data.content || []
-    pageInfo.value = {
-      pageNumber: data.pageNumber,
-      pageSize: data.pageSize,
-      totalPages: data.totalPages,
-      totalElements: data.totalElements,
-      first: data.first,
-      last: data.last,
-      startPage: data.startPage,
-      endPage: data.endPage,
-    }
-  } catch (error) {
-    console.error('게시글 목록 조회 실패:', error)
-    boardList.value = []
-    pageInfo.value = null
-  } finally {
-    loading.value = false
-  }
-}
-
 
     const updateQueryString = () => {
       const query = {}
@@ -111,7 +105,8 @@ export default {
       if (searchCondition.keyword) query.keyword = searchCondition.keyword
       if (searchCondition.status) query.status = searchCondition.status
       if (searchCondition.orderBy !== 'createdAt') query.orderBy = searchCondition.orderBy
-      if (searchCondition.orderDirection !== 'DESC') query.orderDirection = searchCondition.orderDirection
+      if (searchCondition.orderDirection !== 'DESC')
+        query.orderDirection = searchCondition.orderDirection
       if (searchCondition.pageNumber > 1) query.page = searchCondition.pageNumber
       if (searchCondition.pageSize !== 10) query.size = searchCondition.pageSize
 

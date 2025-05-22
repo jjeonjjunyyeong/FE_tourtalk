@@ -47,8 +47,8 @@ const routes = [
   },
   {
     path: '/profile',
-    name: 'MemberDetailView',
-    component: () => import('@/views/MemberDetailView.vue'),
+    name: 'MyPageView',
+    component: () => import('@/views/MyPageView.vue'),
   },
   {
     path: '/:pathMatch(.*)*',

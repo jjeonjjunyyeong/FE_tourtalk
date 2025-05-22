@@ -22,4 +22,14 @@ export default {
       params: { profileImgPath },
     })
   },
+
+  // 회원 정보 수정
+  updateMember(memberData) {
+    return apiClient.put('/member/me', memberData)
+  },
+
+  // 회원 탈퇴
+  softDelete(data) {
+    return apiClient.post('/member/deleted', data)
+  },
 }
