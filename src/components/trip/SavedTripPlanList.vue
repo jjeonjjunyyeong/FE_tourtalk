@@ -21,10 +21,10 @@
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center gap-3">
           <div class="form-check">
-            <input 
-              type="checkbox" 
-              id="selectAll" 
-              v-model="selectAllPlans" 
+            <input
+              type="checkbox"
+              id="selectAll"
+              v-model="selectAllPlans"
               @change="toggleSelectAll"
               class="form-check-input"
             >
@@ -32,10 +32,10 @@
               전체 선택
             </label>
           </div>
-          
+
           <!-- 상태 필터 -->
-          <select 
-            v-model="statusFilter" 
+          <select
+            v-model="statusFilter"
             @change="onStatusFilterChange"
             class="form-select form-select-sm"
             style="width: auto;"
@@ -50,8 +50,8 @@
           <span class="text-muted small">
             총 {{ pageInfo?.totalElements || 0 }}개
           </span>
-          <button 
-            class="btn btn-sm btn-danger" 
+          <button
+            class="btn btn-sm btn-danger"
             @click="deleteSelectedPlans"
             :disabled="selectedPlanIds.length === 0"
           >
@@ -63,9 +63,9 @@
 
       <!-- 일정 목록 -->
       <div class="trip-plans-list">
-        <div 
-          v-for="plan in tripPlans" 
-          :key="plan.id" 
+        <div
+          v-for="plan in tripPlans"
+          :key="plan.id"
           class="trip-plan-item card mb-3"
           :class="{ 'selected': selectedPlanIds.includes(plan.id) }"
         >
@@ -73,10 +73,10 @@
             <div class="row align-items-center">
               <!-- 체크박스 -->
               <div class="col-auto">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   :id="`plan-${plan.id}`"
-                  v-model="selectedPlanIds" 
+                  v-model="selectedPlanIds"
                   :value="plan.id"
                   class="form-check-input"
                 >
@@ -89,7 +89,7 @@
                     <!-- 제목과 상태 -->
                     <div class="d-flex align-items-center gap-2 mb-2">
                       <h6 class="mb-0">{{ plan.name }}</h6>
-                      <span 
+                      <span
                         class="badge"
                         :class="getStatusBadgeClass(plan.status)"
                       >
@@ -120,15 +120,15 @@
                     <!-- 관광지 미리보기 -->
                     <div v-if="plan.attractions && plan.attractions.length > 0" class="mt-2">
                       <div class="attraction-preview">
-                        <span 
-                          v-for="(attraction, index) in plan.attractions.slice(0, 3)" 
+                        <span
+                          v-for="(attraction, index) in plan.attractions.slice(0, 3)"
                           :key="attraction.id"
                           class="badge bg-light text-dark me-1"
                         >
                           {{ attraction.attractionTitle }}
                         </span>
-                        <span 
-                          v-if="plan.attractions.length > 3" 
+                        <span
+                          v-if="plan.attractions.length > 3"
                           class="badge bg-secondary"
                         >
                           +{{ plan.attractions.length - 3 }}개
@@ -140,7 +140,7 @@
                   <!-- 액션 버튼들 -->
                   <div class="d-flex flex-column gap-2 ms-3">
                     <div class="btn-group-vertical btn-group-sm">
-                      <button 
+                      <button
                         class="btn btn-outline-primary"
                         @click="$emit('load-plan', plan.id)"
                         title="일정 불러오기"
@@ -148,8 +148,8 @@
                         <i class="bi bi-download me-1"></i>
                         불러오기
                       </button>
-                      
-                      <button 
+
+                      <button
                         class="btn btn-outline-secondary"
                         @click="showPlanDetail(plan)"
                         title="상세 보기"
@@ -157,9 +157,9 @@
                         <i class="bi bi-eye me-1"></i>
                         상세보기
                       </button>
-                      
+
                       <div class="btn-group btn-group-sm">
-                        <button 
+                        <button
                           class="btn btn-outline-warning dropdown-toggle"
                           data-bs-toggle="dropdown"
                           title="상태 변경"
@@ -168,7 +168,7 @@
                         </button>
                         <ul class="dropdown-menu">
                           <li>
-                            <button 
+                            <button
                               class="dropdown-item"
                               @click="updatePlanStatus(plan.id, 'DRAFT')"
                               :disabled="plan.status === 'DRAFT'"
@@ -178,7 +178,7 @@
                             </button>
                           </li>
                           <li>
-                            <button 
+                            <button
                               class="dropdown-item"
                               @click="updatePlanStatus(plan.id, 'COMPLETED')"
                               :disabled="plan.status === 'COMPLETED'"
@@ -189,8 +189,8 @@
                           </li>
                         </ul>
                       </div>
-                      
-                      <button 
+
+                      <button
                         class="btn btn-outline-danger"
                         @click="deleteSinglePlan(plan.id)"
                         title="삭제"
@@ -210,17 +210,17 @@
       <nav v-if="pageInfo && pageInfo.totalPages > 1" aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
           <li :class="['page-item', { disabled: pageInfo.first }]">
-            <button 
-              class="page-link" 
-              @click="changePage(pageInfo.pageNumber - 1)" 
+            <button
+              class="page-link"
+              @click="changePage(pageInfo.pageNumber - 1)"
               :disabled="pageInfo.first"
             >
               <i class="bi bi-chevron-left"></i>
             </button>
           </li>
-          
-          <li 
-            v-for="page in getPageNumbers()" 
+
+          <li
+            v-for="page in getPageNumbers()"
             :key="page"
             :class="['page-item', { active: page === pageInfo.pageNumber }]"
           >
@@ -228,11 +228,11 @@
               {{ page }}
             </button>
           </li>
-          
+
           <li :class="['page-item', { disabled: pageInfo.last }]">
-            <button 
-              class="page-link" 
-              @click="changePage(pageInfo.pageNumber + 1)" 
+            <button
+              class="page-link"
+              @click="changePage(pageInfo.pageNumber + 1)"
               :disabled="pageInfo.last"
             >
               <i class="bi bi-chevron-right"></i>
@@ -256,7 +256,7 @@
               <div class="row mb-3">
                 <div class="col-md-6">
                   <strong>상태:</strong>
-                  <span 
+                  <span
                     class="badge ms-2"
                     :class="getStatusBadgeClass(selectedPlan.status)"
                   >
@@ -287,8 +287,8 @@
               <div class="mb-3">
                 <strong>관광지 목록 ({{ selectedPlan.attractions?.length || 0 }}개):</strong>
                 <div class="mt-2">
-                  <div 
-                    v-for="(attraction, index) in selectedPlan.attractions" 
+                  <div
+                    v-for="(attraction, index) in selectedPlan.attractions"
                     :key="attraction.id"
                     class="d-flex align-items-center mb-2 p-2 bg-light rounded"
                   >
@@ -304,9 +304,9 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-            <button 
-              type="button" 
-              class="btn btn-primary" 
+            <button
+              type="button"
+              class="btn btn-primary"
               @click="loadPlanFromModal"
               data-bs-dismiss="modal"
             >
@@ -380,11 +380,9 @@ export default {
         console.error('저장된 일정 조회 실패:', error);
         tripPlans.value = [];
         pageInfo.value = null;
-        
+
         if (error.response?.status === 401) {
           alert('로그인이 필요합니다.');
-        } else {
-          alert('저장된 일정을 불러오는데 실패했습니다.');
         }
       } finally {
         loading.value = false;
@@ -415,7 +413,7 @@ export default {
     // 선택된 일정들 삭제
     const deleteSelectedPlans = async () => {
       if (selectedPlanIds.value.length === 0) return;
-      
+
       if (!confirm(`선택한 ${selectedPlanIds.value.length}개의 일정을 삭제하시겠습니까?`)) {
         return;
       }
@@ -468,7 +466,7 @@ export default {
         } else {
           selectedPlan.value = plan;
         }
-        
+
         planDetailModal.show();
       } catch (error) {
         console.error('일정 상세 조회 실패:', error);
@@ -486,16 +484,16 @@ export default {
     // 페이지 번호 계산
     const getPageNumbers = () => {
       if (!pageInfo.value) return [];
-      
+
       const { pageNumber, totalPages } = pageInfo.value;
       const pages = [];
       const start = Math.max(1, pageNumber - 2);
       const end = Math.min(totalPages, pageNumber + 2);
-      
+
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
-      
+
       return pages;
     };
 
@@ -529,11 +527,11 @@ export default {
     const formatDateRange = (startDate, endDate) => {
       const start = formatDate(startDate);
       const end = formatDate(endDate);
-      
+
       if (start === end) {
         return start;
       }
-      
+
       return `${start} - ${end}`;
     };
 

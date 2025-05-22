@@ -8,18 +8,27 @@
         <div class="card shadow-sm mb-4">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">선택한 관광지</h5>
-            <button class="btn btn-sm btn-outline-danger" @click="clearAllAttractions" :disabled="selectedAttractions.length === 0">
-              전체 삭제
-            </button>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-danger" @click="clearAllAttractions" :disabled="selectedAttractions.length === 0">
+                전체 삭제
+              </button>
+            </div>
           </div>
           <div class="card-body p-0">
 
             <div v-if="selectedAttractions.length === 0" class="text-center py-5">
               <i class="bi bi-map display-4 text-muted"></i>
               <p class="mt-2">선택된 관광지가 없습니다.</p>
-              <router-link to="/attractions" class="btn btn-primary mt-2">
-                관광지 검색하기
-              </router-link>
+              <div class="d-flex flex-column gap-2">
+                <router-link to="/attractions" class="btn btn-primary">
+                  <i class="bi bi-search me-1"></i>
+                  관광지 검색하기
+                </router-link>
+                <button class="btn btn-outline-primary" @click="showSavedPlansModal">
+                  <i class="bi bi-folder me-1"></i>
+                  저장된 일정 불러오기
+                </button>
+              </div>
             </div>
 
             <draggable
@@ -55,8 +64,6 @@
                     <div class="item-location">
                       {{ element.sido }} {{ element.gugun }}
                     </div>
-                    <!-- 디버깅용 -->
-                    <!-- <pre>{{ JSON.stringify(element, null, 2) }}</pre> -->
                   </div>
 
                   <button class="btn btn-sm btn-link text-danger delete-btn" @click="removeAttraction(index)">
@@ -68,7 +75,11 @@
           </div>
 
           <div v-if="selectedAttractions.length > 0" class="card-footer">
-            <div class="d-flex justify-content-end">
+            <div class="d-flex justify-content-between">
+              <button class="btn btn-outline-primary btn-sm" @click="showSavedPlansModal">
+                <i class="bi bi-folder me-1"></i>
+                저장된 일정
+              </button>
               <button class="btn btn-primary" @click="saveTripPlan">
                 <i class="bi bi-save me-1"></i>
                 여행 계획 저장
@@ -125,22 +136,51 @@
                 <input type="text" id="tripName" v-model="tripPlan.name" class="form-control" placeholder="여행 이름을 입력하세요">
               </div>
 
-              <div class="col-md-6">
-                <label for="tripDate" class="form-label">여행 날짜</label>
-                <input type="date" id="tripDate" v-model="tripPlan.date" class="form-control">
+              <div class="col-md-3">
+                <label for="startDate" class="form-label">시작 날짜</label>
+                <input type="date" id="startDate" v-model="tripPlan.startDate" class="form-control">
+              </div>
+
+              <div class="col-md-3">
+                <label for="endDate" class="form-label">종료 날짜</label>
+                <input type="date" id="endDate" v-model="tripPlan.endDate" class="form-control">
               </div>
 
               <div class="col-12">
                 <label for="tripMemo" class="form-label">메모</label>
                 <textarea
                   id="tripMemo"
-                  v-model="tripPlan.memo"
+                  v-model="tripPlan.description"
                   class="form-control"
                   rows="4"
                   placeholder="여행에 대한 메모를 남겨보세요"
                 ></textarea>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 저장된 일정 목록 모달 -->
+    <div class="modal fade" id="savedPlansModal" tabindex="-1" aria-hidden="true" ref="savedPlansModalRef">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">저장된 여행 계획</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <!-- SavedTripPlanList 컴포넌트 사용 -->
+            <SavedTripPlanList
+              v-model="selectedPlanIds"
+              @load-plan="loadTripPlan"
+              @plans-updated="onPlansUpdated"
+              ref="savedTripPlanListRef"
+            />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
           </div>
         </div>
       </div>
@@ -152,11 +192,14 @@
 import { ref, reactive, onMounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import draggable from 'vuedraggable';
+import tripPlanService from '@/services/tripPlan';
+import SavedTripPlanList from '@/components/trip/SavedTripPlanList.vue';
 
 export default {
   name: 'TripPlanView',
   components: {
-    draggable
+    draggable,
+    SavedTripPlanList
   },
   setup() {
     const route = useRoute();
@@ -164,6 +207,10 @@ export default {
     const map = ref(null);
     const markers = ref([]);
     const polyline = ref(null);
+    const savedPlansModalRef = ref(null);
+    const savedTripPlanListRef = ref(null);
+    const selectedPlanIds = ref([]);
+    let savedPlansModal = null;
 
     // 경로 계산 결과
     const totalDistance = ref(0);
@@ -172,8 +219,9 @@ export default {
     // 여행 계획 정보
     const tripPlan = reactive({
       name: '나의 여행 계획',
-      date: new Date().toISOString().split('T')[0],
-      memo: '',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      description: '',
       attractions: []
     });
 
@@ -202,6 +250,75 @@ export default {
       }
     };
 
+    // 저장된 일정 모달 표시
+    const showSavedPlansModal = () => {
+      savedPlansModal.show();
+    };
+
+    // 특정 여행 계획 불러오기
+    const loadTripPlan = async (tripPlanId) => {
+      try {
+        console.log('Loading trip plan with ID:', tripPlanId);
+        const { data } = await tripPlanService.getTripPlanDetail(tripPlanId);
+
+        // 여행 계획 기본 정보 설정
+        tripPlan.name = data.name;
+        tripPlan.description = data.description;
+        tripPlan.startDate = data.startDate;
+        tripPlan.endDate = data.endDate;
+
+        // 관광지 데이터를 프론트엔드 형태로 변환
+        selectedAttractions.value = data.attractions
+          .sort((a, b) => a.visitOrder - b.visitOrder)
+          .map(item => ({
+            no: item.attractionId,
+            title: item.attractionTitle,
+            latitude: parseFloat(item.latitude),
+            longitude: parseFloat(item.longitude),
+            sido: item.sido,
+            gugun: item.gugun,
+            addr: item.addr,
+            contentTypeName: '관광지',
+            firstImage1: '',
+            viewCnt: 0
+          }));
+
+        totalDistance.value = parseFloat(data.totalDistance) || 0;
+        totalDuration.value = data.totalDuration || 0;
+
+        // localStorage 업데이트
+        saveTripPlanToLocal();
+
+        // 지도 업데이트
+        setTimeout(() => {
+          if (selectedAttractions.value.length > 0) {
+            displayMarkers();
+            calculateRoute();
+          }
+        }, 100);
+
+        // 모달 닫기
+        savedPlansModal.hide();
+        alert('여행 계획을 불러왔습니다.');
+
+      } catch (error) {
+        console.error('여행 계획 로드 실패:', error);
+
+        if (error.response?.status === 401) {
+          alert('로그인이 필요합니다.');
+        } else if (error.response?.status === 404) {
+          alert('해당 여행 계획을 찾을 수 없습니다.');
+        } else {
+          alert('여행 계획을 불러오는데 실패했습니다.');
+        }
+      }
+    };
+
+    // 저장된 계획 목록 업데이트 이벤트 처리
+    const onPlansUpdated = (plans) => {
+      console.log('Plans updated:', plans.length, '개');
+    };
+
     // 관광지 삭제
     const removeAttraction = (index) => {
       selectedAttractions.value.splice(index, 1);
@@ -224,37 +341,99 @@ export default {
       localStorage.setItem('tripPlan', JSON.stringify(data));
     };
 
-    // 여행 계획 저장 (서버에 저장 또는 다운로드)
-    const saveTripPlan = () => {
-      const plan = {
-        ...tripPlan,
-        attractions: selectedAttractions.value,
-        totalDistance: totalDistance.value,
-        totalDuration: totalDuration.value
-      };
-      // 나중에 DB에 저장하는 로직 추가
-      localStorage.setItem('savedTripPlan', JSON.stringify(plan));
+    // 여행 계획 저장 (서버에 저장)
+    const saveTripPlan = async () => {
+      try {
+        if (selectedAttractions.value.length === 0) {
+          alert('저장할 관광지가 없습니다.');
+          return;
+        }
 
-      selectedAttractions.value = [];
+        // 날짜 유효성 검사
+        if (new Date(tripPlan.startDate) > new Date(tripPlan.endDate)) {
+          alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
+          return;
+        }
 
-      clearMarkers();
+        // Backend로 전달할 데이터 형태로 변환
+        const backendData = {
+          name: tripPlan.name || '나의 여행 계획',
+          description: tripPlan.description || '',
+          startDate: tripPlan.startDate,
+          endDate: tripPlan.endDate,
+          totalDistance: totalDistance.value || 0,
+          totalDuration: totalDuration.value || 0,
+          status: 'COMPLETED',
+          attractions: selectedAttractions.value.map((attraction, index) => ({
+            attractionId: attraction.no,
+            attractionTitle: attraction.title,
+            visitOrder: index + 1,
+            latitude: attraction.latitude,
+            longitude: attraction.longitude,
+            sido: attraction.sido,
+            gugun: attraction.gugun,
+            addr: attraction.addr
+          }))
+        };
 
-      totalDistance.value = 0;
-      totalDuration.value = 0;
+        const response = await tripPlanService.saveTripPlan(backendData);
+        console.log('여행 계획 저장 성공:', response.data);
 
-      tripPlan.name = '나의 여행 계획';
-      tripPlan.date = new Date().toISOString().split('T')[0];
-      tripPlan.memo = '';
-      tripPlan.attractions = [];
-      
-      localStorage.removeItem('tripPlan');
-      
-      alert('여행 계획이 저장되었습니다.');
+        // 성공 후 화면 및 localStorage 초기화
+        selectedAttractions.value = [];
+        clearMarkers();
+        totalDistance.value = 0;
+        totalDuration.value = 0;
+
+        tripPlan.name = '나의 여행 계획';
+        tripPlan.startDate = new Date().toISOString().split('T')[0];
+        tripPlan.endDate = new Date().toISOString().split('T')[0];
+        tripPlan.description = '';
+        tripPlan.attractions = [];
+
+        localStorage.removeItem('tripPlan');
+
+        alert('여행 계획이 성공적으로 저장되었습니다.');
+
+        // 저장된 일정 목록 새로고침
+        if (savedTripPlanListRef.value) {
+          savedTripPlanListRef.value.refresh();
+        }
+
+      } catch (error) {
+        console.error('여행 계획 저장 실패:', error);
+
+        if (error.response) {
+          const status = error.response.status;
+          const message = error.response.data || '알 수 없는 오류가 발생했습니다.';
+
+          switch (status) {
+            case 400:
+              alert(`잘못된 요청입니다: ${message}`);
+              break;
+            case 401:
+              alert('로그인이 필요합니다.');
+              break;
+            case 403:
+              alert('권한이 없습니다.');
+              break;
+            case 500:
+              alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+              break;
+            default:
+              alert(`오류가 발생했습니다 (${status}): ${message}`);
+          }
+        } else if (error.request) {
+          alert('서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
+        } else {
+          alert('요청 처리 중 오류가 발생했습니다.');
+        }
+      }
     };
 
     // 지도 초기화
     const initMap = () => {
-      console.log('Initializing map...'); // 디버깅
+      console.log('Initializing map...');
       const container = document.getElementById('map');
       if (!container) {
         console.error('Map container not found');
@@ -292,7 +471,7 @@ export default {
       };
 
       map.value = new window.kakao.maps.Map(container, options);
-      console.log('Map created:', map.value); // 디버깅
+      console.log('Map created:', map.value);
 
       if (selectedAttractions.value.length > 0) {
         console.log('Displaying markers for attractions:', selectedAttractions.value);
@@ -303,7 +482,7 @@ export default {
 
     // 마커 표시
     const displayMarkers = () => {
-      console.log('Displaying markers...'); // 디버깅
+      console.log('Displaying markers...');
       clearMarkers();
 
       const bounds = new window.kakao.maps.LatLngBounds();
@@ -336,13 +515,13 @@ export default {
 
       if (selectedAttractions.value.length > 0) {
         map.value.setBounds(bounds);
-        console.log('Map bounds set'); // 디버깅
+        console.log('Map bounds set');
       }
     };
 
     // 마커 제거
     const clearMarkers = () => {
-      console.log('Clearing markers...'); // 디버깅
+      console.log('Clearing markers...');
       markers.value.forEach(marker => {
         marker.setMap(null);
       });
@@ -356,7 +535,7 @@ export default {
 
     // 경로 계산
     const calculateRoute = () => {
-      console.log('Calculating route with attractions:', selectedAttractions.value); // 디버깅
+      console.log('Calculating route with attractions:', selectedAttractions.value);
       if (selectedAttractions.value.length < 2 || !map.value) {
         console.log('Not enough attractions or map not initialized');
         totalDistance.value = 0;
@@ -369,7 +548,7 @@ export default {
       const linePath = selectedAttractions.value.map(attraction =>
         new window.kakao.maps.LatLng(attraction.latitude, attraction.longitude)
       );
-      console.log('Line path:', linePath); // 디버깅
+      console.log('Line path:', linePath);
 
       if (polyline.value) {
         polyline.value.setMap(null);
@@ -389,7 +568,7 @@ export default {
 
     // 거리와 시간 계산
     const calculateDistanceAndDuration = () => {
-      console.log('Calculating distance and duration...'); // 디버깅
+      console.log('Calculating distance and duration...');
       let distance = 0;
 
       for (let i = 0; i < selectedAttractions.value.length - 1; i++) {
@@ -406,7 +585,7 @@ export default {
 
       totalDistance.value = distance;
       totalDuration.value = (distance / 60) * 60;
-      console.log('Total distance:', totalDistance.value, 'Total duration:', totalDuration.value); // 디버깅
+      console.log('Total distance:', totalDistance.value, 'Total duration:', totalDuration.value);
     };
 
     // 두 지점 간 거리 계산 (하버사인 공식)
@@ -456,22 +635,25 @@ export default {
 
     // 선택된 관광지 변경 감지
     watch(selectedAttractions, () => {
-      console.log('selectedAttractions updated:', selectedAttractions.value); // 디버깅
+      console.log('selectedAttractions updated:', selectedAttractions.value);
       tripPlan.attractions = selectedAttractions.value;
-      saveTripPlanToLocal(); // 순서 변경 시 로컬 스토리지 갱신
+      saveTripPlanToLocal();
     }, { deep: true });
 
     // 컴포넌트 마운트 시 데이터 로드 및 지도 초기화
     onMounted(async () => {
-      loadSelectedAttractions();
-      console.log('Immediately after loading:', selectedAttractions.value); // 디버깅
+      // Bootstrap 모달 초기화
+      const { Modal } = await import('bootstrap');
+      savedPlansModal = new Modal(savedPlansModalRef.value);
 
-      // 데이터 로드 후 DOM 갱신 대기
+      loadSelectedAttractions();
+      console.log('Immediately after loading:', selectedAttractions.value);
+
       await nextTick();
-      console.log('After nextTick:', selectedAttractions.value); // 디버깅
+      console.log('After nextTick:', selectedAttractions.value);
 
       setTimeout(() => {
-        console.log('Before initMap:', selectedAttractions.value); // 디버깅
+        console.log('Before initMap:', selectedAttractions.value);
         initMap();
         if (selectedAttractions.value.length > 0) {
           console.log('Calculating route with:', selectedAttractions.value);
@@ -485,12 +667,18 @@ export default {
       tripPlan,
       totalDistance,
       totalDuration,
+      selectedPlanIds,
+      savedPlansModalRef,
+      savedTripPlanListRef,
       removeAttraction,
       clearAllAttractions,
       saveTripPlan,
       formatDistance,
       formatDuration,
-      getNaviUrl
+      getNaviUrl,
+      showSavedPlansModal,
+      loadTripPlan,
+      onPlansUpdated
     };
   }
 };
@@ -499,7 +687,6 @@ export default {
 <style scoped>
 .selected-list {
   max-height: 500px;
-  /* overflow-y: auto; */
 }
 
 .selected-item {
@@ -521,7 +708,7 @@ export default {
 
 .item-number {
   display: flex;
-  justify-content : center;
+  justify-content: center;
   align-items: center;
   width: 24px;
   height: 24px;
@@ -574,5 +761,9 @@ export default {
 .delete-btn {
   padding: 0;
   margin-left: 0.5rem;
+}
+
+.modal-dialog {
+  max-width: 1200px;
 }
 </style>
