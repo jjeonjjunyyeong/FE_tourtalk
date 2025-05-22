@@ -55,7 +55,7 @@
                     <div class="item-location">
                       {{ element.sido }} {{ element.gugun }}
                     </div>
-                    <!-- 디버깅용: 전체 객체 출력 (필요 시 주석 해제) -->
+                    <!-- 디버깅용 -->
                     <!-- <pre>{{ JSON.stringify(element, null, 2) }}</pre> -->
                   </div>
 
@@ -181,7 +181,6 @@ export default {
     const loadSelectedAttractions = () => {
       try {
         const savedData = localStorage.getItem('tripPlan');
-        console.log('Raw localStorage data:', savedData); // 디버깅: 원본 데이터 확인
 
         if (!savedData) {
           console.warn('No tripPlan data found in localStorage');
@@ -190,11 +189,9 @@ export default {
         }
 
         const saved = JSON.parse(savedData);
-        console.log('Parsed data:', saved); // 디버깅: 파싱된 데이터 확인
 
         if (saved && Array.isArray(saved.attractions)) {
           selectedAttractions.value = saved.attractions;
-          console.log('Loaded attractions:', selectedAttractions.value); // 디버깅: 할당된 데이터 확인
         } else {
           console.error('Invalid format: saved.attractions is not an array');
           selectedAttractions.value = [];
@@ -224,9 +221,7 @@ export default {
     // 로컬 스토리지에 저장
     const saveTripPlanToLocal = () => {
       const data = { attractions: selectedAttractions.value };
-      console.log('Saving to localStorage:', data); // 디버깅
       localStorage.setItem('tripPlan', JSON.stringify(data));
-      console.log('Saved data:', localStorage.getItem('tripPlan')); // 디버깅
     };
 
     // 여행 계획 저장 (서버에 저장 또는 다운로드)
@@ -237,9 +232,23 @@ export default {
         totalDistance: totalDistance.value,
         totalDuration: totalDuration.value
       };
-      console.log('Saving trip plan:', plan); // 디버깅
       // 나중에 DB에 저장하는 로직 추가
       localStorage.setItem('savedTripPlan', JSON.stringify(plan));
+
+      selectedAttractions.value = [];
+
+      clearMarkers();
+
+      totalDistance.value = 0;
+      totalDuration.value = 0;
+
+      tripPlan.name = '나의 여행 계획';
+      tripPlan.date = new Date().toISOString().split('T')[0];
+      tripPlan.memo = '';
+      tripPlan.attractions = [];
+      
+      localStorage.removeItem('tripPlan');
+      
       alert('여행 계획이 저장되었습니다.');
     };
 
@@ -264,7 +273,7 @@ export default {
             createMap();
           });
         };
-        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=xx&libraries=services&autoload=false`;
+        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`;
         document.head.appendChild(script);
       }
     };

@@ -116,7 +116,7 @@ const fetchThemeAttractions = async () => {
   
   try {
     themeLoading.value = true;
-    const { data } = await attractionService.getRandomAttractionsByTheme(selectedTheme.value, 6);
+    const { data } = await attractionService.getRandomAttractionsByTheme(selectedTheme.value, 3);
     themeAttractions.value = data || [];
   } catch (error) {
     console.error('테마별 여행지 조회 실패:', error);
@@ -132,7 +132,7 @@ const fetchRegionAttractions = async () => {
   
   try {
     regionLoading.value = true;
-    const { data } = await attractionService.getRandomAttractionsByRegion(selectedRegion.value, 6);
+    const { data } = await attractionService.getRandomAttractionsByRegion(selectedRegion.value, 3);
     regionAttractions.value = data || [];
   } catch (error) {
     console.error('지역별 여행지 조회 실패:', error);

@@ -34,14 +34,14 @@ export default {
   },
 
   // 테마별 랜덤 관광지 조회
-  getRandomAttractionsByTheme(contentTypeId, count = 6) {
+  getRandomAttractionsByTheme(contentTypeId, count = 3) {
     return apiClient.get(`/attractions/random/theme/${contentTypeId}`, {
       params: { count }
     });
   },
 
   // 지역별 랜덤 관광지 조회
-  getRandomAttractionsByRegion(sidoCode, count = 6) {
+  getRandomAttractionsByRegion(sidoCode, count = 3) {
     return apiClient.get(`/attractions/random/region/${sidoCode}`, {
       params: { count }
     });
