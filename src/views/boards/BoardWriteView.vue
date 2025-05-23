@@ -6,12 +6,13 @@
       <div class="card shadow-sm">
         <div class="card-body">
           <form @submit.prevent="submitForm">
-            <!-- 알림 메시지 -->
-            <div v-if="message" :class="['alert', messageType === 'error' ? 'alert-danger' : 'alert-success']">
+            <div
+              v-if="message"
+              :class="['alert', messageType === 'error' ? 'alert-danger' : 'alert-success']"
+            >
               {{ message }}
             </div>
 
-            <!-- 제목 입력 -->
             <div class="mb-3">
               <label for="title" class="form-label">제목</label>
               <input
@@ -21,10 +22,19 @@
                 class="form-control"
                 placeholder="제목을 입력하세요"
                 required
-              >
+              />
             </div>
 
-            <!-- 내용 입력 -->
+            <div class="mb-3">
+              <label for="category" class="form-label">카테고리</label>
+              <select v-model="boardForm.category" class="form-select" required>
+                <option disabled value="">카테고리를 선택하세요</option>
+                <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+
             <div class="mb-4">
               <label for="content" class="form-label">내용</label>
               <textarea
@@ -37,7 +47,6 @@
               ></textarea>
             </div>
 
-            <!-- 게시글 상태 선택 -->
             <div class="mb-3">
               <label class="form-label">게시글 상태</label>
               <div class="d-flex">
@@ -48,8 +57,8 @@
                     v-model="boardForm.status"
                     value="ACTIVE"
                     class="form-check-input"
-                  >
-                  <label class="form-check-label" for="statusActive">공개</label>
+                  />
+                  <label class="form-check-label" for="Active">공개</label>
                 </div>
                 <div class="form-check">
                   <input
@@ -58,25 +67,21 @@
                     v-model="boardForm.status"
                     value="INACTIVE"
                     class="form-check-input"
-                  >
-                  <label class="form-check-label" for="statusInactive">비공개</label>
+                  />
+                  <label class="form-check-label" for="Inactive">비공개</label>
                 </div>
               </div>
             </div>
 
-            <!-- 파일 업로드 (선택사항) -->
             <div class="mb-4">
               <label for="fileUpload" class="form-label">파일 첨부 (선택사항)</label>
-              <input
-                type="file"
-                id="fileUpload"
-                class="form-control"
-                @change="handleFileUpload"
-              >
+              <input type="file" id="fileUpload" class="form-control" @change="handleFileUpload" />
               <div v-if="boardForm.filePath" class="mt-2">
-                <span class="text-muted">현재 파일: {{ getFileNameFromPath(boardForm.filePath) }}</span>
-                <button 
-                  type="button" 
+                <span class="text-muted"
+                  >현재 파일: {{ getFileNameFromPath(boardForm.filePath) }}</span
+                >
+                <button
+                  type="button"
                   class="btn btn-sm btn-outline-danger ms-2"
                   @click="removeFile"
                 >
@@ -85,17 +90,16 @@
               </div>
             </div>
 
-            <!-- 버튼 영역 -->
             <div class="d-flex justify-content-between">
               <router-link to="/boards" class="btn btn-secondary">
                 <i class="bi bi-x-circle me-1"></i> 취소
               </router-link>
-              <button
-                type="submit"
-                class="btn btn-primary"
-                :disabled="loading"
-              >
-                <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status"></span>
+              <button type="submit" class="btn btn-primary" :disabled="loading">
+                <span
+                  v-if="loading"
+                  class="spinner-border spinner-border-sm me-2"
+                  role="status"
+                ></span>
                 <i v-else class="bi bi-check-circle me-1"></i>
                 {{ isEdit ? '수정하기' : '등록하기' }}
               </button>
@@ -108,176 +112,136 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import boardService from '@/services/board';
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import boardService from '@/services/board'
+import fileService from '@/services/file'
 
 export default {
   name: 'BoardWriteView',
   setup() {
-    const route = useRoute();
-    const router = useRouter();
+    const authStore = useAuthStore()
+    const userRole = computed(() => authStore.role)
 
-    // 상태 관리
-    const loading = ref(false);
-    const message = ref('');
-    const messageType = ref('');
-    const selectedFile = ref(null);
-    
-    // 폼 데이터
+    const route = useRoute()
+    const router = useRouter()
+
+    const loading = ref(false)
+    const message = ref('')
+    const messageType = ref('')
+    const selectedFile = ref(null)
+
+    const categoryOptions = computed(() => {
+      const base = [
+        { value: 'FREE', label: '자유게시판' },
+        { value: 'QNA', label: 'Q&A' },
+        { value: 'INQUIRY', label: '문의' },
+      ]
+      if (userRole.value === 'ADMIN') {
+        return [{ value: 'NOTICE', label: '공지사항' }, ...base]
+      }
+      return base
+    })
+
     const boardForm = reactive({
+      postId: null,
       title: '',
       content: '',
-      writerId: 2, // 임시로 사용자 ID 설정 (실제로는 로그인된 사용자 ID 사용)
-      categoryId: 1, // QnA 게시판 카테고리 ID (백엔드와 협의 필요)
-      status: 'ACTIVE',
-      filePath: ''
-    });
+      category: '',
+      status: '',
+      filePath: '',
+    })
 
-    // 수정 모드 여부 확인
-    const isEdit = computed(() => {
-      return route.path.includes('/edit/');
-    });
+    const isEdit = computed(() => route.path.includes('/edit/'))
+    const postId = computed(() => (isEdit.value ? Number(route.params.no) : null))
 
-    // 게시글 ID (수정 모드일 때만 사용)
-    const postId = computed(() => {
-      return isEdit.value ? Number(route.params.no) : null;
-    });
-
-    // 파일 업로드 처리
     const handleFileUpload = (event) => {
-      selectedFile.value = event.target.files[0];
-      // 실제 파일 업로드는 폼 제출 시 처리
-    };
+      selectedFile.value = event.target.files[0]
+    }
 
-    // 파일 경로에서 파일명 추출
-    const getFileNameFromPath = (path) => {
-      if (!path) return '';
-      return path.split('/').pop();
-    };
+    const getFileNameFromPath = (path) => (!path ? '' : path.split('/').pop())
 
-    // 파일 삭제
     const removeFile = () => {
-      boardForm.filePath = '';
-      selectedFile.value = null;
-      // 파일 입력 필드 초기화
-      const fileInput = document.getElementById('fileUpload');
-      if (fileInput) fileInput.value = '';
-    };
+      boardForm.filePath = ''
+      selectedFile.value = null
+      const fileInput = document.getElementById('fileUpload')
+      if (fileInput) fileInput.value = ''
+    }
 
-    // 게시글 등록
     const createBoard = async () => {
       try {
-        loading.value = true;
-        
-        // 파일 업로드 처리 (실제로는 FormData와 별도의 API 호출 필요)
+        loading.value = true
         if (selectedFile.value) {
-          // 실제 구현에서는 파일 업로드 API 호출 후 파일 경로 설정
-          // const formData = new FormData();
-          // formData.append('file', selectedFile.value);
-          // const uploadResponse = await fileService.uploadFile(formData);
-          // boardForm.filePath = uploadResponse.data.filePath;
-          
-          // 임시 구현 (실제로는 파일 업로드 후 경로를 설정해야 함)
-          boardForm.filePath = `/uploads/${selectedFile.value.name}`;
+          const result = await fileService.upload(selectedFile.value, 'boards')
+          boardForm.filePath = result.filePath
         }
-        
-        const response = await boardService.createBoard(boardForm);
-        
-        message.value = '게시글이 등록되었습니다.';
-        messageType.value = 'success';
-        
-        // 게시글 상세 페이지로 이동
-        setTimeout(() => {
-          router.push(`/boards/${response.data.postId}`);
-        }, 1000);
-      } catch (error) {
-        console.error('게시글 등록 실패:', error);
-        message.value = '게시글 등록에 실패했습니다.';
-        messageType.value = 'error';
-      } finally {
-        loading.value = false;
-      }
-    };
 
-    // 게시글 수정
+        const response = await boardService.createBoard(boardForm)
+        message.value = '게시글이 등록되었습니다.'
+        messageType.value = 'success'
+        setTimeout(() => router.push(`/boards`), 1000)
+      } catch (error) {
+        message.value = '게시글 등록에 실패했습니다.'
+        messageType.value = 'error'
+      } finally {
+        loading.value = false
+      }
+    }
+
     const updateBoard = async () => {
       try {
-        loading.value = true;
-        
-        // 파일 업로드 처리 (실제로는 FormData와 별도의 API 호출 필요)
+        loading.value = true
         if (selectedFile.value) {
-          // 실제 구현에서는 파일 업로드 API 호출 후 파일 경로 설정
-          // const formData = new FormData();
-          // formData.append('file', selectedFile.value);
-          // const uploadResponse = await fileService.uploadFile(formData);
-          // boardForm.filePath = uploadResponse.data.filePath;
-          
-          // 임시 구현 (실제로는 파일 업로드 후 경로를 설정해야 함)
-          boardForm.filePath = `/uploads/${selectedFile.value.name}`;
+          const result = await fileService.upload(selectedFile.value, 'boards')
+          boardForm.filePath = result.filePath
         }
-        
-        await boardService.updateBoard(postId.value, boardForm);
-        
-        message.value = '게시글이 수정되었습니다.';
-        messageType.value = 'success';
-        
-        // 게시글 상세 페이지로 이동
-        setTimeout(() => {
-          router.push(`/boards/${postId.value}`);
-        }, 1000);
-      } catch (error) {
-        console.error('게시글 수정 실패:', error);
-        message.value = '게시글 수정에 실패했습니다.';
-        messageType.value = 'error';
-      } finally {
-        loading.value = false;
-      }
-    };
 
-    // 폼 제출 처리
+        await boardService.updateBoard(boardForm)
+        message.value = '게시글이 수정되었습니다.'
+        messageType.value = 'success'
+        setTimeout(() => router.push(`/boards/${postId.value}`), 1000)
+      } catch (error) {
+        console.error('게시글 수정 실패:', error)
+        message.value = '게시글 수정에 실패했습니다.'
+        messageType.value = 'error'
+      } finally {
+        loading.value = false
+      }
+    }
+
     const submitForm = () => {
       if (isEdit.value) {
-        updateBoard();
+        boardForm.postId = postId.value
+        updateBoard()
       } else {
-        createBoard();
+        createBoard()
       }
-    };
+    }
 
-    // 수정일 경우 기존 게시글 정보 가져오기
     const fetchBoardDetail = async () => {
-      if (!isEdit.value) return;
-      
+      if (!isEdit.value) return
       try {
-        loading.value = true;
-        const { data } = await boardService.getBoardDetail(postId.value);
-        
+        loading.value = true
+        const { data } = await boardService.getBoardDetail(postId.value)
         if (!data) {
-          message.value = '게시글 정보를 찾을 수 없습니다.';
-          messageType.value = 'error';
-          return;
+          message.value = '게시글 정보를 찾을 수 없습니다.'
+          messageType.value = 'error'
+          return
         }
-        
-        // 폼 데이터 설정
-        boardForm.title = data.title;
-        boardForm.content = data.content;
-        boardForm.status = data.status;
-        boardForm.filePath = data.filePath;
-        boardForm.categoryId = data.categoryId;
-        boardForm.writerId = data.writerId;
+        Object.assign(boardForm, data)
       } catch (error) {
-        console.error('게시글 정보 조회 실패:', error);
-        message.value = '게시글 정보를 불러오는데 실패했습니다.';
-        messageType.value = 'error';
+        console.error('게시글 정보 조회 실패:', error)
+        message.value = '게시글 정보를 불러오는데 실패했습니다.'
+        messageType.value = 'error'
       } finally {
-        loading.value = false;
+        loading.value = false
       }
-    };
+    }
 
-    // 컴포넌트 마운트 시 실행
     onMounted(() => {
-      fetchBoardDetail();
-    });
+      fetchBoardDetail()
+    })
 
     return {
       boardForm,
@@ -288,10 +252,11 @@ export default {
       submitForm,
       handleFileUpload,
       getFileNameFromPath,
-      removeFile
-    };
-  }
-};
+      removeFile,
+      categoryOptions,
+    }
+  },
+}
 </script>
 
 <style scoped>

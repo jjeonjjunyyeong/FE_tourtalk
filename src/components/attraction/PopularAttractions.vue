@@ -25,7 +25,7 @@
                 :src="attraction.firstImage1"
                 class="rounded"
                 :alt="attraction.title"
-              >
+              />
               <div v-else class="no-image rounded">
                 <i class="bi bi-image"></i>
               </div>
@@ -52,63 +52,66 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
-import attractionService from '@/services/attraction';
+import { ref, onMounted, computed } from 'vue'
+import attractionService from '@/services/attraction'
 
 export default {
   name: 'PopularAttractions',
   props: {
     limit: {
       type: Number,
-      default: 4
-    }
+      default: 4,
+    },
   },
   setup(props) {
-    const popularAttractions = ref([]);
-    const loading = ref(false);
+    const popularAttractions = ref([])
+    const loading = ref(false)
 
     // 순위 표시 헬퍼 함수
     const getOrdinalNumber = (num) => {
       // 순위를 1부터 시작하도록 조정
-      const index = num - 1;
-      return `${index + 1}${getOrdinalSuffix(index + 1)}`;
-    };
+      const index = num - 1
+      return `${index + 1}${getOrdinalSuffix(index + 1)}`
+    }
 
     const getOrdinalSuffix = (num) => {
-      if (num === 1) return 'st';
-      if (num === 2) return 'nd';
-      if (num === 3) return 'rd';
-      return 'th';
-    };
+      if (num === 1) return 'st'
+      if (num === 2) return 'nd'
+      if (num === 3) return 'rd'
+      return 'th'
+    }
 
     // 인기 관광지 조회
     const fetchPopularAttractions = async () => {
       try {
-        loading.value = true;
-        const { data } = await attractionService.getPopularAttractions(props.limit);
+        loading.value = true
+        const { data } = await attractionService.getPopularAttractions(props.limit)
+
+        console.log('🔥 API 응답 데이터:', data)
 
         // 순위 추가
         popularAttractions.value = data.map((item, index) => ({
           ...item,
-          rank: index + 1
-        }));
+          rank: index + 1,
+          firstImage1: item.first_image1,
+        }))
       } catch (error) {
-        console.error('인기 관광지 조회 실패:', error);
+        console.error('인기 관광지 조회 실패:', error)
       } finally {
-        loading.value = false;
+        loading.value = false
       }
-    };
+    }
 
     // 컴포넌트 마운트 시 인기 관광지 조회
-    onMounted(fetchPopularAttractions);
+    onMounted(fetchPopularAttractions)
 
     return {
       popularAttractions,
       loading,
-      getOrdinalNumber
-    };
-  }
-};
+      getOrdinalNumber,
+    }
+  },
+}
 </script>
 
 <style scoped>
@@ -145,7 +148,8 @@ export default {
   padding: 8px;
 }
 
-.image-wrapper img, .no-image {
+.image-wrapper img,
+.no-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
