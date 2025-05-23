@@ -77,6 +77,24 @@ const routes = [
     component: () => import('@/views/boards/BoardWriteView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/products/manage',
+    name: 'ProductManage',
+    component: () => import('@/views/products/ProductManageView.vue'),
+    meta: { requiresAuth: true, role: 'CURATOR' },
+  },
+  {
+    path: '/products/create',
+    name: 'ProductCreate',
+    component: () => import('@/views/products/ProductCreateView.vue'),
+    meta: { requiresAuth: true, role: 'CURATOR' },
+  },
+  {
+    path: '/admin/users',
+    name: 'UserManage',
+    component: () => import('@/views/admin/UserManageView.vue'),
+    meta: { requiresAuth: true, role: 'ADMIN' },
+  },
 ]
 
 const router = createRouter({

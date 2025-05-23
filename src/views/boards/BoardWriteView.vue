@@ -48,29 +48,12 @@
             </div>
 
             <div class="mb-3">
-              <label class="form-label">게시글 상태</label>
-              <div class="d-flex">
-                <div class="form-check me-3">
-                  <input
-                    type="radio"
-                    id="statusActive"
-                    v-model="boardForm.status"
-                    value="ACTIVE"
-                    class="form-check-input"
-                  />
-                  <label class="form-check-label" for="Active">공개</label>
-                </div>
-                <div class="form-check">
-                  <input
-                    type="radio"
-                    id="statusInactive"
-                    v-model="boardForm.status"
-                    value="INACTIVE"
-                    class="form-check-input"
-                  />
-                  <label class="form-check-label" for="Inactive">비공개</label>
-                </div>
-              </div>
+              <label for="status" class="form-label">게시글 상태</label>
+              <select id="status" v-model="boardForm.status" class="form-select" required>
+                <option disabled value="">상태를 선택하세요</option>
+                <option value="ACTIVE">공개</option>
+                <option value="INACTIVE">비공개</option>
+              </select>
             </div>
 
             <div class="mb-4">
