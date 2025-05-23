@@ -136,21 +136,16 @@
                 <input type="text" id="tripName" v-model="tripPlan.name" class="form-control" placeholder="여행 이름을 입력하세요">
               </div>
 
-              <div class="col-md-3">
-                <label for="startDate" class="form-label">시작 날짜</label>
-                <input type="date" id="startDate" v-model="tripPlan.startDate" class="form-control">
-              </div>
-
-              <div class="col-md-3">
-                <label for="endDate" class="form-label">종료 날짜</label>
-                <input type="date" id="endDate" v-model="tripPlan.endDate" class="form-control">
+              <div class="col-md-6">
+                <label for="tripDate" class="form-label">여행 날짜</label>
+                <input type="date" id="tripDate" v-model="tripPlan.date" class="form-control">
               </div>
 
               <div class="col-12">
                 <label for="tripMemo" class="form-label">메모</label>
                 <textarea
                   id="tripMemo"
-                  v-model="tripPlan.description"
+                  v-model="tripPlan.memo"
                   class="form-control"
                   rows="4"
                   placeholder="여행에 대한 메모를 남겨보세요"
@@ -164,23 +159,132 @@
 
     <!-- 저장된 일정 목록 모달 -->
     <div class="modal fade" id="savedPlansModal" tabindex="-1" aria-hidden="true" ref="savedPlansModalRef">
-      <div class="modal-dialog modal-xl">
+      <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">저장된 여행 계획</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <!-- SavedTripPlanList 컴포넌트 사용 -->
-            <SavedTripPlanList
-              v-model="selectedPlanIds"
-              @load-plan="loadTripPlan"
-              @plans-updated="onPlansUpdated"
-              ref="savedTripPlanListRef"
-            />
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            <!-- 로딩 상태 -->
+            <div v-if="savedPlansLoading" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">로딩중...</span>
+              </div>
+              <p class="mt-2">저장된 일정을 불러오는 중입니다...</p>
+            </div>
+
+            <!-- 저장된 일정이 없는 경우 -->
+            <div v-else-if="savedPlans.length === 0" class="text-center py-5">
+              <i class="bi bi-folder-x display-4 text-muted"></i>
+              <h5 class="mt-3">저장된 일정이 존재하지 않습니다.</h5>
+              <p class="text-muted">여행 계획을 저장하면 여기에 표시됩니다.</p>
+            </div>
+
+            <!-- 저장된 일정 목록 -->
+            <div v-else>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-check">
+                  <input 
+                    type="checkbox" 
+                    id="selectAll" 
+                    v-model="selectAllPlans" 
+                    @change="toggleSelectAll"
+                    class="form-check-input"
+                  >
+                  <label class="form-check-label" for="selectAll">
+                    전체 선택
+                  </label>
+                </div>
+                <button 
+                  class="btn btn-sm btn-danger" 
+                  @click="deleteSelectedPlans"
+                  :disabled="selectedPlanIds.length === 0"
+                >
+                  <i class="bi bi-trash me-1"></i>
+                  선택 삭제 ({{ selectedPlanIds.length }})
+                </button>
+              </div>
+
+              <div class="saved-plans-list">
+                <div 
+                  v-for="plan in savedPlans" 
+                  :key="plan.id" 
+                  class="saved-plan-item card mb-2"
+                  :class="{ 'selected': selectedPlanIds.includes(plan.id) }"
+                >
+                  <div class="card-body">
+                    <div class="row align-items-center">
+                      <div class="col-auto">
+                        <input 
+                          type="checkbox" 
+                          :id="`plan-${plan.id}`"
+                          v-model="selectedPlanIds" 
+                          :value="plan.id"
+                          class="form-check-input"
+                        >
+                      </div>
+                      <div class="col">
+                        <div class="d-flex justify-content-between align-items-start">
+                          <div>
+                            <h6 class="mb-1">{{ plan.name }}</h6>
+                            <p class="mb-1 text-muted small">{{ plan.description || '설명 없음' }}</p>
+                            <div class="small text-muted">
+                              <i class="bi bi-calendar me-1"></i>
+                              {{ formatDateRange(plan.startDate, plan.endDate) }}
+                              <span class="mx-2">|</span>
+                              <i class="bi bi-geo-alt me-1"></i>
+                              {{ plan.attractions?.length || 0 }}개 관광지
+                            </div>
+                          </div>
+                          <div class="d-flex gap-2">
+                            <button 
+                              class="btn btn-sm btn-outline-primary"
+                              @click="loadTripPlan(plan.id)"
+                              title="일정 불러오기"
+                            >
+                              <i class="bi bi-download"></i>
+                            </button>
+                            <button 
+                              class="btn btn-sm btn-outline-danger"
+                              @click="deleteSinglePlan(plan.id)"
+                              title="삭제"
+                            >
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 페이지네이션 -->
+              <nav v-if="pageInfo && pageInfo.totalPages > 1" aria-label="Page navigation" class="mt-3">
+                <ul class="pagination justify-content-center">
+                  <li :class="['page-item', { disabled: pageInfo.first }]">
+                    <button class="page-link" @click="loadSavedPlans(pageInfo.pageNumber - 1)" :disabled="pageInfo.first">
+                      이전
+                    </button>
+                  </li>
+                  <li 
+                    v-for="page in getPageNumbers()" 
+                    :key="page"
+                    :class="['page-item', { active: page === pageInfo.pageNumber }]"
+                  >
+                    <button class="page-link" @click="loadSavedPlans(page)">
+                      {{ page }}
+                    </button>
+                  </li>
+                  <li :class="['page-item', { disabled: pageInfo.last }]">
+                    <button class="page-link" @click="loadSavedPlans(pageInfo.pageNumber + 1)" :disabled="pageInfo.last">
+                      다음
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            </div>
           </div>
         </div>
       </div>
@@ -193,13 +297,11 @@ import { ref, reactive, onMounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import draggable from 'vuedraggable';
 import tripPlanService from '@/services/tripPlan';
-import SavedTripPlanList from '@/components/trip/SavedTripPlanList.vue';
 
 export default {
   name: 'TripPlanView',
   components: {
-    draggable,
-    SavedTripPlanList
+    draggable
   },
   setup() {
     const route = useRoute();
@@ -208,8 +310,6 @@ export default {
     const markers = ref([]);
     const polyline = ref(null);
     const savedPlansModalRef = ref(null);
-    const savedTripPlanListRef = ref(null);
-    const selectedPlanIds = ref([]);
     let savedPlansModal = null;
 
     // 경로 계산 결과
@@ -219,11 +319,17 @@ export default {
     // 여행 계획 정보
     const tripPlan = reactive({
       name: '나의 여행 계획',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      description: '',
+      date: new Date().toISOString().split('T')[0],
+      memo: '',
       attractions: []
     });
+
+    // 저장된 일정 관련 상태
+    const savedPlans = ref([]);
+    const savedPlansLoading = ref(false);
+    const selectedPlanIds = ref([]);
+    const selectAllPlans = ref(false);
+    const pageInfo = ref(null);
 
     // 로컬 스토리지에서 선택된 관광지 불러오기
     const loadSelectedAttractions = () => {
@@ -250,23 +356,55 @@ export default {
       }
     };
 
+    // 저장된 일정 목록 조회
+    const loadSavedPlans = async (page = 1, size = 10) => {
+      try {
+        savedPlansLoading.value = true;
+        selectedPlanIds.value = [];
+        selectAllPlans.value = false;
+
+        const { data } = await tripPlanService.getUserTripPlans({ 
+          status: 'COMPLETED', // 완료된 일정만 조회
+          page, 
+          size 
+        });
+
+        savedPlans.value = data.content || [];
+        pageInfo.value = {
+          pageNumber: data.pageNumber,
+          pageSize: data.pageSize,
+          totalPages: data.totalPages,
+          totalElements: data.totalElements,
+          first: data.first,
+          last: data.last
+        };
+
+      } catch (error) {
+        console.error('저장된 일정 조회 실패:', error);
+        alert('저장된 일정을 불러오는데 실패했습니다.');
+        savedPlans.value = [];
+        pageInfo.value = null;
+      } finally {
+        savedPlansLoading.value = false;
+      }
+    };
+
     // 저장된 일정 모달 표시
-    const showSavedPlansModal = () => {
+    const showSavedPlansModal = async () => {
+      await loadSavedPlans();
       savedPlansModal.show();
     };
 
     // 특정 여행 계획 불러오기
     const loadTripPlan = async (tripPlanId) => {
       try {
-        console.log('Loading trip plan with ID:', tripPlanId);
         const { data } = await tripPlanService.getTripPlanDetail(tripPlanId);
-
+        
         // 여행 계획 기본 정보 설정
         tripPlan.name = data.name;
-        tripPlan.description = data.description;
-        tripPlan.startDate = data.startDate;
-        tripPlan.endDate = data.endDate;
-
+        tripPlan.memo = data.description;
+        tripPlan.date = data.startDate;
+        
         // 관광지 데이터를 프론트엔드 형태로 변환
         selectedAttractions.value = data.attractions
           .sort((a, b) => a.visitOrder - b.visitOrder)
@@ -282,13 +420,13 @@ export default {
             firstImage1: '',
             viewCnt: 0
           }));
-
+        
         totalDistance.value = parseFloat(data.totalDistance) || 0;
         totalDuration.value = data.totalDuration || 0;
-
+        
         // localStorage 업데이트
         saveTripPlanToLocal();
-
+        
         // 지도 업데이트
         setTimeout(() => {
           if (selectedAttractions.value.length > 0) {
@@ -296,27 +434,86 @@ export default {
             calculateRoute();
           }
         }, 100);
-
+        
         // 모달 닫기
         savedPlansModal.hide();
         alert('여행 계획을 불러왔습니다.');
-
+        
       } catch (error) {
         console.error('여행 계획 로드 실패:', error);
-
-        if (error.response?.status === 401) {
-          alert('로그인이 필요합니다.');
-        } else if (error.response?.status === 404) {
-          alert('해당 여행 계획을 찾을 수 없습니다.');
-        } else {
-          alert('여행 계획을 불러오는데 실패했습니다.');
-        }
+        alert('여행 계획을 불러오는데 실패했습니다.');
       }
     };
 
-    // 저장된 계획 목록 업데이트 이벤트 처리
-    const onPlansUpdated = (plans) => {
-      console.log('Plans updated:', plans.length, '개');
+    // 전체 선택 토글
+    const toggleSelectAll = () => {
+      if (selectAllPlans.value) {
+        selectedPlanIds.value = savedPlans.value.map(plan => plan.id);
+      } else {
+        selectedPlanIds.value = [];
+      }
+    };
+
+    // 선택된 일정들 삭제
+    const deleteSelectedPlans = async () => {
+      if (selectedPlanIds.value.length === 0) return;
+      
+      if (!confirm(`선택한 ${selectedPlanIds.value.length}개의 일정을 삭제하시겠습니까?`)) {
+        return;
+      }
+
+      try {
+        await tripPlanService.deleteTripPlans(selectedPlanIds.value);
+        await loadSavedPlans(pageInfo.value?.pageNumber || 1);
+        selectedPlanIds.value = [];
+        selectAllPlans.value = false;
+        alert('선택한 일정이 삭제되었습니다.');
+      } catch (error) {
+        console.error('일정 삭제 실패:', error);
+        alert('일정 삭제에 실패했습니다.');
+      }
+    };
+
+    // 단일 일정 삭제
+    const deleteSinglePlan = async (planId) => {
+      if (!confirm('이 일정을 삭제하시겠습니까?')) return;
+
+      try {
+        await tripPlanService.deleteTripPlan(planId);
+        await loadSavedPlans(pageInfo.value?.pageNumber || 1);
+        alert('일정이 삭제되었습니다.');
+      } catch (error) {
+        console.error('일정 삭제 실패:', error);
+        alert('일정 삭제에 실패했습니다.');
+      }
+    };
+
+    // 페이지 번호 계산
+    const getPageNumbers = () => {
+      if (!pageInfo.value) return [];
+      
+      const { pageNumber, totalPages } = pageInfo.value;
+      const pages = [];
+      const start = Math.max(1, pageNumber - 2);
+      const end = Math.min(totalPages, pageNumber + 2);
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      return pages;
+    };
+
+    // 날짜 범위 포맷팅
+    const formatDateRange = (startDate, endDate) => {
+      const start = new Date(startDate).toLocaleDateString('ko-KR');
+      const end = new Date(endDate).toLocaleDateString('ko-KR');
+      
+      if (start === end) {
+        return start;
+      }
+      
+      return `${start} - ${end}`;
     };
 
     // 관광지 삭제
@@ -349,18 +546,12 @@ export default {
           return;
         }
 
-        // 날짜 유효성 검사
-        if (new Date(tripPlan.startDate) > new Date(tripPlan.endDate)) {
-          alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
-          return;
-        }
-
         // Backend로 전달할 데이터 형태로 변환
         const backendData = {
           name: tripPlan.name || '나의 여행 계획',
-          description: tripPlan.description || '',
-          startDate: tripPlan.startDate,
-          endDate: tripPlan.endDate,
+          description: tripPlan.memo || '',
+          startDate: tripPlan.date || new Date().toISOString().split('T')[0],
+          endDate: tripPlan.date || new Date().toISOString().split('T')[0],
           totalDistance: totalDistance.value || 0,
           totalDuration: totalDuration.value || 0,
           status: 'COMPLETED',
@@ -384,29 +575,23 @@ export default {
         clearMarkers();
         totalDistance.value = 0;
         totalDuration.value = 0;
-
+        
         tripPlan.name = '나의 여행 계획';
-        tripPlan.startDate = new Date().toISOString().split('T')[0];
-        tripPlan.endDate = new Date().toISOString().split('T')[0];
-        tripPlan.description = '';
+        tripPlan.date = new Date().toISOString().split('T')[0];
+        tripPlan.memo = '';
         tripPlan.attractions = [];
-
+        
         localStorage.removeItem('tripPlan');
 
         alert('여행 계획이 성공적으로 저장되었습니다.');
 
-        // 저장된 일정 목록 새로고침
-        if (savedTripPlanListRef.value) {
-          savedTripPlanListRef.value.refresh();
-        }
-
       } catch (error) {
         console.error('여행 계획 저장 실패:', error);
-
+        
         if (error.response) {
           const status = error.response.status;
-          const message = error.response.data || '알 수 없는 오류가 발생했습니다.';
-
+          const message = error.response.data.message || '알 수 없는 오류가 발생했습니다.';
+          
           switch (status) {
             case 400:
               alert(`잘못된 요청입니다: ${message}`);
@@ -640,6 +825,11 @@ export default {
       saveTripPlanToLocal();
     }, { deep: true });
 
+    // 선택된 일정 ID 변경 감지 (전체 선택 상태 업데이트)
+    watch(selectedPlanIds, () => {
+      selectAllPlans.value = selectedPlanIds.value.length === savedPlans.value.length && savedPlans.value.length > 0;
+    }, { deep: true });
+
     // 컴포넌트 마운트 시 데이터 로드 및 지도 초기화
     onMounted(async () => {
       // Bootstrap 모달 초기화
@@ -667,9 +857,12 @@ export default {
       tripPlan,
       totalDistance,
       totalDuration,
+      savedPlans,
+      savedPlansLoading,
       selectedPlanIds,
+      selectAllPlans,
+      pageInfo,
       savedPlansModalRef,
-      savedTripPlanListRef,
       removeAttraction,
       clearAllAttractions,
       saveTripPlan,
@@ -678,7 +871,12 @@ export default {
       getNaviUrl,
       showSavedPlansModal,
       loadTripPlan,
-      onPlansUpdated
+      toggleSelectAll,
+      deleteSelectedPlans,
+      deleteSinglePlan,
+      loadSavedPlans,
+      getPageNumbers,
+      formatDateRange
     };
   }
 };
@@ -763,7 +961,40 @@ export default {
   margin-left: 0.5rem;
 }
 
+/* 저장된 일정 모달 스타일 */
+.saved-plans-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.saved-plan-item {
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.saved-plan-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.saved-plan-item.selected {
+  border-color: #4361ee;
+  box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+}
+
 .modal-dialog {
-  max-width: 1200px;
+  max-width: 800px;
+}
+
+.pagination {
+  margin-bottom: 0;
+}
+
+.page-link {
+  color: #4361ee;
+}
+
+.page-item.active .page-link {
+  background-color: #4361ee;
+  border-color: #4361ee;
 }
 </style>

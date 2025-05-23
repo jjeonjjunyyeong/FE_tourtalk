@@ -1,3 +1,4 @@
+
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import HomeView from '@/views/HomeView.vue'
@@ -89,28 +90,22 @@ const router = createRouter({
   },
 })
 
-// 네비게이션 가드를 사용하여 인증이 필요한 페이지 처리
 router.beforeEach(async (to, from, next) => {
-  // 인증 스토어 인스턴스 생성
-  const authStore = useAuthStore()
+  const authStore = useAuthStore();
 
-  // HTTP Only Cookie 방식에서는 백엔드에 로그인 상태 확인 요청
-  if (to.matched.some((record) => record.meta.requiresAuth)) {
+  if (to.matched.some(record => record.meta.requiresAuth)) {
     try {
-      // 백엔드에 로그인 상태 확인 요청
-      const isLoggedIn = await authStore.checkLogin()
+      const isLoggedIn = await authStore.checkLogin();
 
       if (isLoggedIn) {
-        // 로그인되어 있으면 요청한 페이지로 이동
-        next()
+        next();
       } else {
-        // 로그인되어 있지 않으면 로그인 페이지로 리다이렉트
-        next({ name: 'Login', query: { redirect: to.fullPath } })
+        next({ name: 'Login', query: { redirect: to.fullPath } });
       }
     } catch (error) {
-      console.error('로그인 상태 확인 실패:', error)
-      // 오류 발생 시 로그인 페이지로 리다이렉트
-      next({ name: 'Login', query: { redirect: to.fullPath } })
+      console.error('로그인 상태 확인 실패:', error);
+      next({ name: 'Login', query: { redirect: to.fullPath } });
+
     }
   } else {
     // 인증이 필요 없는 페이지는 그냥 진행

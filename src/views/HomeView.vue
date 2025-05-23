@@ -115,9 +115,10 @@ const fetchThemeAttractions = async () => {
   if (!selectedTheme.value) return
 
   try {
-    themeLoading.value = true
-    const { data } = await attractionService.getRandomAttractionsByTheme(selectedTheme.value, 3)
-    themeAttractions.value = data || []
+
+    themeLoading.value = true;
+    const { data } = await attractionService.getRandomAttractionsByTheme(selectedTheme.value, 3);
+    themeAttractions.value = data || [];
   } catch (error) {
     console.error('테마별 여행지 조회 실패:', error)
     themeAttractions.value = []
@@ -131,9 +132,9 @@ const fetchRegionAttractions = async () => {
   if (!selectedRegion.value) return
 
   try {
-    regionLoading.value = true
-    const { data } = await attractionService.getRandomAttractionsByRegion(selectedRegion.value, 3)
-    regionAttractions.value = data || []
+    regionLoading.value = true;
+    const { data } = await attractionService.getRandomAttractionsByRegion(selectedRegion.value, 3);
+    regionAttractions.value = data || [];
   } catch (error) {
     console.error('지역별 여행지 조회 실패:', error)
     regionAttractions.value = []
