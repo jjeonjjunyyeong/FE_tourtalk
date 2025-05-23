@@ -87,8 +87,6 @@ export default {
         loading.value = true
         const { data } = await attractionService.getPopularAttractions(props.limit)
 
-        console.log('🔥 API 응답 데이터:', data)
-
         // 순위 추가
         popularAttractions.value = data.map((item, index) => ({
           ...item,

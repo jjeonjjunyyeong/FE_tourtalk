@@ -48,8 +48,8 @@ const routes = [
   },
   {
     path: '/profile',
-    name: 'MemberDetailView',
-    component: () => import('@/views/MemberDetailView.vue'),
+    name: 'MyPageView',
+    component: () => import('@/views/MyPageView.vue'),
   },
   {
     path: '/:pathMatch(.*)*',
@@ -77,6 +77,24 @@ const routes = [
     name: 'BoardEdit',
     component: () => import('@/views/boards/BoardWriteView.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/products/manage',
+    name: 'ProductManage',
+    component: () => import('@/views/products/ProductManageView.vue'),
+    meta: { requiresAuth: true, role: 'CURATOR' },
+  },
+  {
+    path: '/products/create',
+    name: 'ProductCreate',
+    component: () => import('@/views/products/ProductCreateView.vue'),
+    meta: { requiresAuth: true, role: 'CURATOR' },
+  },
+  {
+    path: '/admin/users',
+    name: 'UserManage',
+    component: () => import('@/views/admin/UserManageView.vue'),
+    meta: { requiresAuth: true, role: 'ADMIN' },
   },
 ]
 

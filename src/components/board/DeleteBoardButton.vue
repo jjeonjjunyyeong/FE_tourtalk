@@ -85,7 +85,7 @@ export default {
         loading.value = true
 
         // boardService에 deleteBoard 메서드 추가 필요
-        await boardService.deleteBoard(props.postId)
+        await boardService.softDeleteBoard(props.postId)
 
         modal.hide()
         emit('delete-success')

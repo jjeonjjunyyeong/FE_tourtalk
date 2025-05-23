@@ -5,7 +5,7 @@
         <div class="row g-3">
           <!-- 검색 유형 선택 -->
           <div class="col-md-3">
-            <select v-model="searchParams.searchType" class="form-select">
+            <select v-model="searchParams.keywordType" class="form-select">
               <option value="">전체</option>
               <option value="title">제목</option>
               <option value="writer">작성자</option>
@@ -48,39 +48,36 @@
 </template>
 
 <script>
-import { reactive } from 'vue';
+import { reactive } from 'vue'
 
 export default {
   name: 'BoardSearchForm',
   emits: ['search'],
   setup(props, { emit }) {
-    // 검색 파라미터
     const searchParams = reactive({
-      searchType: '',
+      keywordType: '',
       keyword: '',
       status: ''
-    });
+    })
 
-    // 검색 실행
     const onSearch = () => {
-      emit('search', { ...searchParams });
-    };
+      emit('search', { ...searchParams })
+    }
 
-    // 검색 초기화
     const resetSearch = () => {
-      searchParams.searchType = '';
-      searchParams.keyword = '';
-      searchParams.status = '';
-      emit('search', { ...searchParams });
-    };
+      searchParams.keywordType = ''
+      searchParams.keyword = ''
+      searchParams.status = ''
+      emit('search', { ...searchParams })
+    }
 
     return {
       searchParams,
       onSearch,
       resetSearch
-    };
+    }
   }
-};
+}
 </script>
 
 <style scoped>
