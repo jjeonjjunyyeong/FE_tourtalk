@@ -17,8 +17,15 @@
           </thead>
           <tbody>
             <tr v-for="(post, index) in posts" :key="post.postId">
-              <td>{{ index + 1 + (page.value - 1) * size }}</td>
-              <td class="text-start">{{ post.title }}</td>
+              <td>{{ index + 1 + (page - 1) * size }}</td>
+              <td class="text-start">
+                <router-link
+                  :to="`/boards/${post.postId}`"
+                  class="text-decoration-none text-dark fw-semibold"
+                >
+                  {{ truncateTitle(post.title) }}
+                </router-link>
+              </td>
               <td>{{ post.viewCount }}</td>
               <td>{{ post.commentCount }}</td>
               <td>{{ formatDate(post.createdAt) }}</td>
@@ -27,22 +34,16 @@
           </tbody>
         </table>
 
-        <!-- 페이징 버튼 -->
         <nav class="mt-3 d-flex justify-content-center">
           <ul class="pagination">
-            <li class="page-item" :class="{ disabled: page.value === 1 }">
-              <button class="page-link" @click="changePage(page.value - 1)">이전</button>
+            <li class="page-item" :class="{ disabled: page === 1 }">
+              <button class="page-link" @click="prevPage">이전</button>
             </li>
-            <li
-              v-for="p in totalPages"
-              :key="p"
-              class="page-item"
-              :class="{ active: p === page.value }"
-            >
+            <li v-for="p in totalPages" :key="p" class="page-item" :class="{ active: p === page }">
               <button class="page-link" @click="changePage(p)">{{ p }}</button>
             </li>
-            <li class="page-item" :class="{ disabled: page.value === totalPages }">
-              <button class="page-link" @click="changePage(page.value + 1)">다음</button>
+            <li class="page-item" :class="{ disabled: page === totalPages }">
+              <button class="page-link" @click="nextPage">다음</button>
             </li>
           </ul>
         </nav>
@@ -53,11 +54,10 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import boardService from '@/services/board'
-import { useAuthStore } from '@/stores/authStore' // 사용자 정보 추출용 (예: Pinia 등에서 사용)
+import { useAuthStore } from '@/stores/authStore'
 
-// 상태
 const posts = ref([])
 const page = ref(1)
 const size = 10
@@ -65,32 +65,47 @@ const totalPages = ref(1)
 const authStore = useAuthStore()
 const writerId = computed(() => authStore.mno)
 
+const postNumber = (index) => index + 1 + (page.value - 1) * size
+
 const fetchPosts = async () => {
   try {
-    const res = await boardService.getMyPosts({
-      writerId: writerId.value,
-      page: page.value,
-      size,
-    })
-
+    const res = await boardService.getMyPosts(writerId.value, page.value, size)
     posts.value = res.data.content
     totalPages.value = res.data.totalPages
   } catch (err) {
-    console.log('게시글 목록을 불러오는데 실패했습니다.')
+    console.error('게시글 목록을 불러오는데 실패했습니다.', err)
   }
 }
 
+const truncateTitle = (title) => {
+  if (!title) return ''
+  return title.length > 15 ? title.slice(0, 15) + '...' : title
+}
+
+watch(page, fetchPosts)
+onMounted(fetchPosts)
+
 const changePage = (p) => {
-  if (p < 1 || p > totalPages.value) return
-  page.value = p
-  fetchPosts()
+  const next = Number(p)
+  if (!isNaN(next) && next >= 1 && next <= totalPages.value) {
+    page.value = next
+  }
+}
+
+const prevPage = () => {
+  if (page.value > 1) page.value--
+}
+
+const nextPage = () => {
+  if (page.value < totalPages.value) page.value++
 }
 
 const formatDate = (dateStr) => dateStr?.substring(0, 10) || ''
+
 const formatStatus = (status) => {
   switch (status) {
     case 'ACTIVE':
-      return '정상'
+      return '공개'
     case 'DELETED':
       return '삭제됨'
     case 'INACTIVE':
@@ -99,6 +114,76 @@ const formatStatus = (status) => {
       return status
   }
 }
-
-onMounted(fetchPosts)
 </script>
+
+<style scoped>
+.table {
+  font-size: 0.95rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #f8fbff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.table thead th {
+  background-color: #e6f0ff;
+  color: #1d3557;
+  font-weight: 600;
+  padding: 0.75rem;
+  border-bottom: 1px solid #d0e2ff;
+}
+
+.table tbody td {
+  padding: 0.7rem;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e6ea;
+  color: #333;
+}
+
+.table tbody tr:hover {
+  background-color: #edf6ff;
+  transition: background-color 0.2s ease;
+}
+
+.table-bordered th,
+.table-bordered td {
+  border: none;
+}
+
+th:nth-child(1),
+td:nth-child(1) {
+  min-width: 50px;
+  white-space: nowrap;
+}
+
+.router-link {
+  color: #1c3faa;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.router-link:hover {
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+.page-link {
+  border-radius: 20px;
+  margin: 0 2px;
+  color: #1c3faa;
+  border: 1px solid #cce0ff;
+}
+
+.page-item.active .page-link {
+  background-color: #0d6efd;
+  color: white;
+  border-color: #0d6efd;
+}
+
+.page-item.disabled .page-link {
+  opacity: 0.5;
+  pointer-events: none;
+}
+</style>
