@@ -38,7 +38,7 @@
               >
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/boards" active-class="active"
+              <router-link class="nav-link" to="/products/booking" active-class="active"
                 >상품 예약하기</router-link
               >
             </li>

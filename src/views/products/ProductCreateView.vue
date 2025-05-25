@@ -1,41 +1,60 @@
 <template>
   <div class="container py-5">
     <h2 class="mb-4 fw-bold">상품 등록</h2>
-
     <form @submit.prevent="submitProduct">
-      <!-- 관광지명 + 관광날짜 + 대표 이미지 -->
+      <!-- 관광지명 + 관광날짜 + 태그 + 대표 이미지 -->
       <div class="row mb-3">
+        <!-- 왼쪽 영역 -->
         <div class="col-md-6">
           <label class="form-label">관광지명</label>
           <div class="position-relative">
+            <div v-if="isAttractionSelected" class="selected-tag">
+              {{ form.locationName }}
+              <span class="remove-btn" @click="clearAttraction">&times;</span>
+            </div>
             <input
+              v-else
               v-model="form.locationName"
-              @input="searchAttractions"
               type="text"
               class="form-control"
-              :class="{ 'border-primary border-2': isAttractionSelected }"
               autocomplete="off"
             />
             <ul
-              v-if="suggestions.length"
+              v-if="suggestions.length && !isAttractionSelected"
               class="list-group position-absolute w-100 shadow"
               style="z-index: 10"
             >
               <li
-                v-for="(title, idx) in suggestions"
-                :key="idx"
+                v-for="(item, idx) in suggestions"
+                :key="item.no"
                 class="list-group-item list-group-item-action"
-                @click="selectAttraction(title)"
+                :class="{ active: highlightedIndex === idx }"
+                @click="selectAttraction(item)"
               >
-                {{ title }}
+                {{ item.title }}
               </li>
             </ul>
           </div>
+
+          <!-- ✅ 태그가 먼저 -->
+          <div class="mt-3">
+            <label class="form-label">태그</label>
+            <select v-model="form.tags" class="form-select" required>
+              <option disabled value="">태그를 선택하세요</option>
+              <option v-for="tag in tagOptions" :key="tag" :value="tag">
+                {{ tag }}
+              </option>
+            </select>
+          </div>
+
+          <!-- ✅ 관광 날짜가 그 아래 -->
           <div class="mt-3">
             <label class="form-label">관광 날짜</label>
             <input v-model="form.startDate" type="date" class="form-control" required />
           </div>
         </div>
+
+        <!-- 오른쪽 영역 (이미지) -->
         <div class="col-md-6">
           <label class="form-label">상품 대표 이미지</label>
           <div
@@ -54,19 +73,17 @@
         </div>
       </div>
 
-      <!-- 제목 -->
+      <!-- 상품 정보 -->
       <div class="mb-3">
         <label class="form-label">상품 제목</label>
         <input v-model="form.title" type="text" class="form-control" required />
       </div>
-
-      <!-- 설명 -->
       <div class="mb-3">
         <label class="form-label">설명</label>
         <textarea v-model="form.description" class="form-control" rows="4"></textarea>
       </div>
 
-      <!-- 인원, 가격 -->
+      <!-- 인원/가격 -->
       <div class="row">
         <div class="col-md-3 mb-3">
           <label class="form-label">최소 인원</label>
@@ -90,7 +107,7 @@
         </div>
       </div>
 
-      <!-- 운영 시간대 선택 -->
+      <!-- 시간대 선택 -->
       <div class="mb-3">
         <label class="form-label">운영 시간대</label>
         <div class="mb-2">
@@ -137,13 +154,11 @@
         </div>
       </div>
 
-      <!-- 미팅 장소 -->
+      <!-- 미팅장소/미팅시간/소요시간 -->
       <div class="mb-3">
         <label class="form-label">미팅 장소</label>
         <input v-model="form.meetingPlace" type="text" class="form-control" />
       </div>
-
-      <!-- 미팅 시간 (몇 분 전), 소요 시간 -->
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">미팅 시간 (몇 분 전)</label>
@@ -168,8 +183,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import axios from 'axios'
+import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import attractionService from '@/services/attraction'
+import productService from '@/services/product'
+import fileService from '@/services/file'
+
+const router = useRouter()
+
+const tagOptions = [
+  '역사',
+  '문화',
+  '자연',
+  '체험',
+  '가족',
+  '힐링',
+  '사진명소',
+  '맛집투어',
+  '야경',
+  '트레킹',
+]
 
 const form = ref({
   title: '',
@@ -183,7 +216,10 @@ const form = ref({
   meetingTime: '',
   duration: 1,
   locationName: '',
+  locationNo: null,
   thumbnailImg: '',
+  tags: '',
+  status: 'OPEN',
 })
 
 const previewImage = ref('')
@@ -191,17 +227,33 @@ const meetingBeforeMinutes = ref(30)
 
 const suggestions = ref([])
 const isAttractionSelected = ref(false)
-const searchAttractions = async () => {
-  const keyword = form.value.locationName.trim()
-  isAttractionSelected.value = false
-  if (!keyword) return (suggestions.value = [])
-  const res = await axios.get(`/api/attractions/search?keyword=${keyword}`)
-  suggestions.value = res.data
-}
-const selectAttraction = (title) => {
-  form.value.locationName = title
+const highlightedIndex = ref(-1)
+
+watch(
+  () => form.value.locationName,
+  async (newVal) => {
+    if (!newVal.trim() || isAttractionSelected.value) {
+      suggestions.value = []
+      return
+    }
+    const res = await attractionService.getAttractionTitles(newVal.trim())
+    suggestions.value = res.data.map((item) => ({ no: item.no, title: item.title }))
+    highlightedIndex.value = -1
+  }
+)
+
+const selectAttraction = (item) => {
+  form.value.locationName = item.title
+  form.value.locationNo = item.no
   suggestions.value = []
   isAttractionSelected.value = true
+  highlightedIndex.value = -1
+}
+
+const clearAttraction = () => {
+  form.value.locationName = ''
+  form.value.locationNo = null
+  isAttractionSelected.value = false
 }
 
 const timeMode = ref('00')
@@ -228,29 +280,47 @@ const setTimeMode = (mode) => {
   timeMode.value = mode
 }
 
-const handleImageUpload = (e) => {
+const handleImageUpload = async (e) => {
   const file = e.target.files[0]
   if (!file) return
 
-  const reader = new FileReader()
-  reader.onload = () => {
-    previewImage.value = reader.result
-  }
-  reader.readAsDataURL(file)
+  try {
+    const result = await fileService.upload(file, 'products') // 업로드 경로 구분
+    console.log('업로드 응답:', result)
 
-  // 실제 업로드 처리 로직은 별도로 필요함
+    if (!result?.filePath) {
+      throw new Error('파일 경로가 응답에 없습니다.')
+    }
+
+    form.value.thumbnailImg = result.filePath
+    // .env 파일 추가하면 수정, 임시로 하드코딩
+    const baseUrl = 'http://localhost:8080'
+    previewImage.value = `${baseUrl}/${result.filePath}`
+    //const baseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?.*$/, '')
+    //previewImage.value = baseUrl + '/' + result.filePath
+    alert('이미지 업로드 성공')
+  } catch (err) {
+    console.error('상품 이미지 업로드 실패:', err)
+    form.value.thumbnailImg = ''
+    previewImage.value = ''
+    alert('상품 이미지 업로드에 실패했습니다.')
+  }
 }
 
-const submitProduct = () => {
-  console.log(
-    '등록할 데이터:',
-    form.value,
-    '시간대:',
-    timeSlots.value,
-    '몇 분 전:',
-    meetingBeforeMinutes.value
-  )
-  // 등록 로직 작성 필요
+const submitProduct = async () => {
+  try {
+    const payload = {
+      ...form.value,
+      timeSlots: timeSlots.value,
+      meetingBeforeMinutes: Number(meetingBeforeMinutes.value),
+    }
+    await productService.createProduct(payload)
+    alert('상품이 성공적으로 등록되었습니다.')
+    router.push('/products/manage')
+  } catch (err) {
+    console.error('상품 등록 실패:', err)
+    alert('상품 등록 중 오류가 발생했습니다.')
+  }
 }
 </script>
 
@@ -260,5 +330,23 @@ const submitProduct = () => {
 }
 .border-2 {
   border-width: 2px !important;
+}
+.selected-tag {
+  background-color: #e7f1ff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #004085;
+}
+.remove-btn {
+  margin-left: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #004085;
+}
+.remove-btn:hover {
+  color: red;
 }
 </style>

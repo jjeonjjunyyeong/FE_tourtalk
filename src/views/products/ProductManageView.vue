@@ -22,7 +22,7 @@
         <div class="card shadow-sm h-100">
           <img
             v-if="product.thumbnailImg"
-            :src="`${apiBase}/${product.thumbnailImg}`"
+            :src="`${tempBase}/${product.thumbnailImg}`"
             class="card-img-top"
             alt="썸네일"
             style="height: 200px; object-fit: cover"
@@ -58,12 +58,12 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import productService from '@/services/product'
-import { useAuthStore } from '@/stores/authStore'
 
 const loading = ref(false)
 const products = ref([])
-const apiBase = import.meta.env.VITE_API_BASE_URL
-const authStore = useAuthStore()
+// const apiBase = import.meta.env.VITE_API_BASE_URL
+// .env 파일 추가 전까지 사용, env 추가 시 위에 주석 해제
+const tempBase = 'http://localhost:8080'
 
 // 상품 상태 라벨
 const statusLabel = (status) => {
@@ -90,7 +90,7 @@ const statusClass = (status) => {
 const fetchProducts = async () => {
   loading.value = true
   try {
-    const res = await productService.getMyProducts(authStore.mno)
+    const res = await productService.getMyProducts()
     products.value = res.data
   } catch (err) {
     console.error('상품 목록 조회 실패:', err)

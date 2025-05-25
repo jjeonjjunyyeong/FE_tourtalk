@@ -7,8 +7,8 @@ export default {
   },
 
   // 상품 수정
-  modifyProduct(productData) {
-    return apiClient.put('/tourProduct', productData)
+  modifyProduct(productId, productData) {
+    return apiClient.put('/tourProduct/${productId}', productData)
   },
 
   // 상품 삭제
@@ -16,8 +16,17 @@ export default {
     return apiClient.delete(`/tourProduct/${productId}`)
   },
 
-  // 특정 큐레이터의 상품 전체 조회
-  selectAllProductByCurator(mno) {
-    return apiClient.get(`/tourProduct?mno=${mno}`)
+  // 큐레이터의 상품 조회
+  getMyProducts() {
+    return apiClient.get(`/tourProduct/curator/products`)
+  },
+
+  // 상품 상세 조회
+  getProductById(productId) {
+    return apiClient.get(`/tourProduct/products/${productId}`)
+  },
+  // 예약 페이지 진입 시 상품 목록(모집 중인) 조회
+  searchAvailableProducts(params) {
+    return apiClient.get(`/tourProduct/available`, { params })
   },
 }

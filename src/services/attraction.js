@@ -46,4 +46,9 @@ export default {
       params: { count },
     })
   },
+
+  // 관광지명 자동완성
+  getAttractionTitles(keyword) {
+    return apiClient.get('/attractions/titles', { params: { keyword } })
+  },
 }
