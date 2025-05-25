@@ -111,20 +111,63 @@
             <div class="card-body">
               <h5 class="card-title mb-3">위치 정보 *</h5>
 
-              <!-- 주소 검색 -->
+              <!-- 통합 검색 -->
               <div class="mb-3">
-                <label for="addressSearch" class="form-label">주소 검색</label>
-                <div class="input-group">
-                  <input
-                    type="text"
-                    id="addressSearch"
-                    v-model="addressSearch"
-                    class="form-control"
-                    placeholder="주소를 입력하고 검색하세요"
+                <label for="placeSearch" class="form-label">장소 검색</label>
+                <div class="search-container">
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      id="placeSearch"
+                      v-model="searchQuery"
+                      @input="onSearchInput"
+                      @focus="showSearchResults = true"
+                      class="form-control"
+                      placeholder="주소, 지명, 상호명으로 검색하세요"
+                      autocomplete="off"
+                    >
+                    <button type="button" class="btn btn-outline-secondary" @click="clearSearch">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
+
+                  <!-- 검색 결과 드롭다운 -->
+                  <div
+                    v-if="showSearchResults && searchResults.length > 0"
+                    class="search-results"
                   >
-                  <button type="button" class="btn btn-outline-secondary" @click="searchAddress">
+                    <div class="search-results-list">
+                      <div
+                        v-for="(result, index) in searchResults"
+                        :key="index"
+                        class="search-result-item"
+                        @click="selectPlace(result)"
+                      >
+                        <div class="result-icon">{{ getCategoryIcon(result.category_group_code) }}</div>
+                        <div class="result-info">
+                          <div class="result-name">{{ result.place_name }}</div>
+                          <div class="result-address">{{ result.address_name }}</div>
+                          <div v-if="result.category_name" class="result-category">
+                            {{ result.category_name }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 검색 중 로딩 -->
+                  <div v-if="searchLoading" class="search-loading">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                      <span class="visually-hidden">검색중...</span>
+                    </div>
+                    <span class="ms-2">검색중...</span>
+                  </div>
+
+                  <!-- 검색 결과 없음 -->
+                  <div v-if="showSearchResults && searchQuery && !searchLoading && searchResults.length === 0" class="no-results">
                     <i class="bi bi-search"></i>
-                  </button>
+                    <span>검색 결과가 없습니다</span>
+                  </div>
                 </div>
               </div>
 
@@ -157,7 +200,7 @@
               <!-- 지도 -->
               <div id="map" style="height: 300px; border-radius: 0.375rem;"></div>
               <small class="text-muted mt-2 d-block">
-                지도를 클릭하여 정확한 위치를 선택하세요
+                지도를 클릭하여 정확한 위치를 선택하거나 위의 검색을 이용하세요
               </small>
             </div>
           </div>
@@ -245,7 +288,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue';
 import hotplaceService from '@/services/hotplace';
 
 export default {
@@ -266,9 +309,15 @@ export default {
     const message = ref('');
     const messageType = ref('');
     const fileInput = ref(null);
-    const addressSearch = ref('');
     const map = ref(null);
     const marker = ref(null);
+
+    // 검색 관련 상태
+    const searchQuery = ref('');
+    const searchResults = ref([]);
+    const showSearchResults = ref(false);
+    const searchLoading = ref(false);
+    const searchTimeout = ref(null);
 
     // 폼 데이터
     const formData = reactive({
@@ -298,6 +347,30 @@ export default {
              formData.rating <= 5;
     });
 
+    // 카테고리별 아이콘 매핑
+    const getCategoryIcon = (categoryCode) => {
+      const iconMap = {
+        'AT4': '🏛️', // 관광명소
+        'AD5': '🏨', // 숙박
+        'FD6': '🍽️', // 음식점
+        'CE7': '☕', // 카페
+        'MT1': '🏪', // 대형마트
+        'CS2': '🏪', // 편의점
+        'PK6': '🚗', // 주차장
+        'OL7': '⛽', // 주유소, 충전소
+        'SW8': '🚇', // 지하철역
+        'BK9': '🏦', // 은행
+        'CT1': '🏛️', // 문화시설
+        'AG2': '🏢', // 중개업소
+        'PO3': '🏛️', // 공공기관
+        'AC5': '📚', // 학교
+        'PS3': '🏥', // 병원
+        'PM9': '💊', // 약국
+        'HP8': '🏥'  // 병원
+      };
+      return iconMap[categoryCode] || '📍';
+    };
+
     // 카테고리 목록 조회
     const fetchContentTypes = async () => {
       try {
@@ -311,6 +384,91 @@ export default {
     // 평점 설정
     const setRating = (rating) => {
       formData.rating = rating;
+    };
+
+    // 검색 입력 처리
+    const onSearchInput = () => {
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+      }
+
+      if (!searchQuery.value.trim()) {
+        searchResults.value = [];
+        showSearchResults.value = false;
+        return;
+      }
+
+      // 디바운스: 300ms 후에 검색 실행
+      searchTimeout.value = setTimeout(() => {
+        performSearch();
+      }, 300);
+    };
+
+    // 검색 실행
+    const performSearch = async () => {
+      if (!searchQuery.value.trim()) return;
+
+      try {
+        searchLoading.value = true;
+
+        if (!window.kakao || !window.kakao.maps) {
+          alert('지도 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+          return;
+        }
+
+        const places = new window.kakao.maps.services.Places();
+
+        places.keywordSearch(searchQuery.value, (result, status) => {
+          searchLoading.value = false;
+
+          if (status === window.kakao.maps.services.Status.OK) {
+            // 최대 5개 결과만 표시
+            searchResults.value = result.slice(0, 5);
+            showSearchResults.value = true;
+          } else {
+            searchResults.value = [];
+            showSearchResults.value = true;
+          }
+        });
+
+      } catch (error) {
+        console.error('검색 실패:', error);
+        searchLoading.value = false;
+        searchResults.value = [];
+      }
+    };
+
+    // 장소 선택
+    const selectPlace = (place) => {
+      // 선택된 장소 정보로 폼 업데이트
+      formData.latitude = parseFloat(place.y);
+      formData.longitude = parseFloat(place.x);
+
+      // 장소명이 비어있으면 자동으로 설정
+      if (!formData.title.trim()) {
+        formData.title = place.place_name;
+      }
+
+      // 검색창에 선택된 장소명 표시
+      searchQuery.value = place.place_name;
+
+      // 검색 결과 숨기기
+      showSearchResults.value = false;
+      searchResults.value = [];
+
+      // 지도 업데이트
+      if (map.value) {
+        const coords = new window.kakao.maps.LatLng(place.y, place.x);
+        map.value.setCenter(coords);
+        updateMarker(coords);
+      }
+    };
+
+    // 검색 초기화
+    const clearSearch = () => {
+      searchQuery.value = '';
+      searchResults.value = [];
+      showSearchResults.value = false;
     };
 
     // 파일 업로드 처리
@@ -351,36 +509,6 @@ export default {
       if (fileInput.value) {
         fileInput.value.value = '';
       }
-    };
-
-    // 주소 검색
-    const searchAddress = () => {
-      if (!addressSearch.value.trim()) {
-        alert('주소를 입력해주세요.');
-        return;
-      }
-
-      if (!window.kakao || !window.kakao.maps) {
-        alert('지도 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
-        return;
-      }
-
-      const geocoder = new window.kakao.maps.services.Geocoder();
-
-      geocoder.addressSearch(addressSearch.value, (result, status) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
-
-          formData.latitude = parseFloat(result[0].y);
-          formData.longitude = parseFloat(result[0].x);
-
-          // 지도 중심 이동 및 마커 표시
-          map.value.setCenter(coords);
-          updateMarker(coords);
-        } else {
-          alert('주소를 찾을 수 없습니다. 다른 주소로 시도해보세요.');
-        }
-      });
     };
 
     // 지도 초기화
@@ -494,6 +622,13 @@ export default {
       document.head.appendChild(script);
     };
 
+    // 검색 결과 외부 클릭 시 숨기기
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.search-container')) {
+        showSearchResults.value = false;
+      }
+    };
+
     // 좌표 변경 감지하여 지도 업데이트
     watch(() => [formData.latitude, formData.longitude], ([newLat, newLng]) => {
       if (map.value && newLat && newLng) {
@@ -508,6 +643,17 @@ export default {
       fetchContentTypes();
       loadInitialData();
       setTimeout(loadKakaoMapScript, 100);
+
+      // 외부 클릭 이벤트 리스너 추가
+      document.addEventListener('click', handleClickOutside);
+    });
+
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    onUnmounted(() => {
+      document.removeEventListener('click', handleClickOutside);
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+      }
     });
 
     return {
@@ -515,16 +661,22 @@ export default {
       message,
       messageType,
       fileInput,
-      addressSearch,
+      searchQuery,
+      searchResults,
+      showSearchResults,
+      searchLoading,
       formData,
       contentTypes,
       imagePreview,
       existingImages,
       isFormValid,
+      getCategoryIcon,
       setRating,
+      onSearchInput,
+      selectPlace,
+      clearSearch,
       handleFileUpload,
       removeImage,
-      searchAddress,
       onSubmit
     };
   }
@@ -577,5 +729,98 @@ export default {
 
 #map {
   border: 1px solid #dee2e6;
+}
+
+/* 검색 관련 스타일 */
+.search-container {
+  position: relative;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.search-results-list {
+  padding: 0;
+  margin: 0;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.2s;
+}
+
+.search-result-item:hover {
+  background-color: #f8f9fa;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.result-icon {
+  font-size: 1.25rem;
+  margin-right: 0.75rem;
+  margin-top: 0.125rem;
+  flex-shrink: 0;
+}
+
+.result-info {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.result-name {
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 0.25rem;
+  word-break: break-word;
+}
+
+.result-address {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-bottom: 0.125rem;
+  word-break: break-word;
+}
+
+.result-category {
+  font-size: 0.75rem;
+  color: #adb5bd;
+  word-break: break-word;
+}
+
+.search-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.no-results {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: #adb5bd;
+  font-size: 0.875rem;
+  gap: 0.5rem;
 }
 </style>
