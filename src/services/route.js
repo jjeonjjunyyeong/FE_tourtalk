@@ -9,8 +9,8 @@ export default {
         const params = {
             originX,
             originY,
-            destX,  
-            destY,  
+            destX,
+            destY,
         };
 
         if (originName) {
@@ -67,7 +67,7 @@ export default {
         if(error.response){
             const status = error.response.status;
             const message = error.response.data;
-            
+
             switch(status){
                 case 400:
                     if (typeof message === 'string' && message.includes('좌표')) {
@@ -93,9 +93,4 @@ export default {
 
 
     }
-
-
-
-
-
 }

@@ -150,8 +150,8 @@
 
                 <!-- 좌표 정보 보기 버튼 -->
                 <div class="mb-2">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     class="btn btn-sm btn-outline-secondary"
                     @click="toggleCoordinates"
                   >
@@ -297,17 +297,17 @@ const getAddressFromCoords = async (lat, lng) => {
 
   return new Promise((resolve, reject) => {
     const geocoder = new window.kakao.maps.services.Geocoder()
-    
+
     geocoder.coord2Address(lng, lat, (result, status) => {
       if (status === window.kakao.maps.services.Status.OK) {
         const detailAddr = result[0]?.address
         if (detailAddr) {
           // 상세 주소 조합 (도로명 주소 우선, 없으면 지번 주소)
           const roadAddr = result[0]?.road_address
-          const address = roadAddr ? 
-            `${roadAddr.address_name}` : 
+          const address = roadAddr ?
+            `${roadAddr.address_name}` :
             `${detailAddr.region_1depth_name} ${detailAddr.region_2depth_name} ${detailAddr.region_3depth_name}`
-          
+
           resolve(address)
         } else {
           reject('주소 정보를 찾을 수 없습니다.')
@@ -329,7 +329,7 @@ const loadAddress = async () => {
   try {
     loadingAddress.value = true
     const addressResult = await getAddressFromCoords(
-      hotplace.value.latitude, 
+      hotplace.value.latitude,
       hotplace.value.longitude
     )
     address.value = addressResult
@@ -356,7 +356,7 @@ const initMap = async () => {
         await loadAddress()
       })
     }
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.KAKAO_MAP_API_KEY}&libraries=services&autoload=false`
     document.head.appendChild(script)
   }
 }
