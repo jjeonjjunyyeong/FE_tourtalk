@@ -287,400 +287,376 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue';
-import hotplaceService from '@/services/hotplace';
+<script setup>
+import { ref, reactive, computed, defineEmits, defineProps,  onMounted, watch, onUnmounted } from 'vue'
 
-export default {
-  name: 'HotplaceForm',
-  props: {
-    hotplace: {
-      type: Object,
-      default: null
-    },
-    isEdit: {
-      type: Boolean,
-      default: false
-    }
+import hotplaceService from '@/services/hotplace'
+
+// Props 정의
+const props = defineProps({
+  hotplace: {
+    type: Object,
+    default: null
   },
-  emits: ['submit', 'cancel'],
-  setup(props, { emit }) {
-    const loading = ref(false);
-    const message = ref('');
-    const messageType = ref('');
-    const fileInput = ref(null);
-    const map = ref(null);
-    const marker = ref(null);
-
-    // 검색 관련 상태
-    const searchQuery = ref('');
-    const searchResults = ref([]);
-    const showSearchResults = ref(false);
-    const searchLoading = ref(false);
-    const searchTimeout = ref(null);
-
-    // 폼 데이터
-    const formData = reactive({
-      title: '',
-      latitude: 37.5665,
-      longitude: 126.9780,
-      rating: 5,
-      contentTypeId: '',
-      description: '',
-      review: '',
-      recommendationReason: ''
-    });
-
-    // 카테고리 데이터
-    const contentTypes = ref([]);
-    const imagePreview = ref([]);
-    const selectedFiles = ref([]);
-    const existingImages = ref([]);
-
-    // 폼 유효성 검사
-    const isFormValid = computed(() => {
-      return formData.title &&
-             formData.contentTypeId &&
-             formData.latitude &&
-             formData.longitude &&
-             formData.rating >= 1 &&
-             formData.rating <= 5;
-    });
-
-    // 카테고리별 아이콘 매핑
-    const getCategoryIcon = (categoryCode) => {
-      const iconMap = {
-        'AT4': '🏛️', // 관광명소
-        'AD5': '🏨', // 숙박
-        'FD6': '🍽️', // 음식점
-        'CE7': '☕', // 카페
-        'MT1': '🏪', // 대형마트
-        'CS2': '🏪', // 편의점
-        'PK6': '🚗', // 주차장
-        'OL7': '⛽', // 주유소, 충전소
-        'SW8': '🚇', // 지하철역
-        'BK9': '🏦', // 은행
-        'CT1': '🏛️', // 문화시설
-        'AG2': '🏢', // 중개업소
-        'PO3': '🏛️', // 공공기관
-        'AC5': '📚', // 학교
-        'PS3': '🏥', // 병원
-        'PM9': '💊', // 약국
-        'HP8': '🏥'  // 병원
-      };
-      return iconMap[categoryCode] || '📍';
-    };
-
-    // 카테고리 목록 조회
-    const fetchContentTypes = async () => {
-      try {
-        const { data } = await hotplaceService.getContentTypes();
-        contentTypes.value = data.contentList || [];
-      } catch (error) {
-        console.error('카테고리 목록 조회 실패:', error);
-      }
-    };
-
-    // 평점 설정
-    const setRating = (rating) => {
-      formData.rating = rating;
-    };
-
-    // 검색 입력 처리
-    const onSearchInput = () => {
-      if (searchTimeout.value) {
-        clearTimeout(searchTimeout.value);
-      }
-
-      if (!searchQuery.value.trim()) {
-        searchResults.value = [];
-        showSearchResults.value = false;
-        return;
-      }
-
-      // 디바운스: 300ms 후에 검색 실행
-      searchTimeout.value = setTimeout(() => {
-        performSearch();
-      }, 300);
-    };
-
-    // 검색 실행
-    const performSearch = async () => {
-      if (!searchQuery.value.trim()) return;
-
-      try {
-        searchLoading.value = true;
-
-        if (!window.kakao || !window.kakao.maps) {
-          alert('지도 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
-          return;
-        }
-
-        const places = new window.kakao.maps.services.Places();
-
-        places.keywordSearch(searchQuery.value, (result, status) => {
-          searchLoading.value = false;
-
-          if (status === window.kakao.maps.services.Status.OK) {
-            // 최대 5개 결과만 표시
-            searchResults.value = result.slice(0, 5);
-            showSearchResults.value = true;
-          } else {
-            searchResults.value = [];
-            showSearchResults.value = true;
-          }
-        });
-
-      } catch (error) {
-        console.error('검색 실패:', error);
-        searchLoading.value = false;
-        searchResults.value = [];
-      }
-    };
-
-    // 장소 선택
-    const selectPlace = (place) => {
-      // 선택된 장소 정보로 폼 업데이트
-      formData.latitude = parseFloat(place.y);
-      formData.longitude = parseFloat(place.x);
-
-      // 장소명이 비어있으면 자동으로 설정
-      if (!formData.title.trim()) {
-        formData.title = place.place_name;
-      }
-
-      // 검색창에 선택된 장소명 표시
-      searchQuery.value = place.place_name;
-
-      // 검색 결과 숨기기
-      showSearchResults.value = false;
-      searchResults.value = [];
-
-      // 지도 업데이트
-      if (map.value) {
-        const coords = new window.kakao.maps.LatLng(place.y, place.x);
-        map.value.setCenter(coords);
-        updateMarker(coords);
-      }
-    };
-
-    // 검색 초기화
-    const clearSearch = () => {
-      searchQuery.value = '';
-      searchResults.value = [];
-      showSearchResults.value = false;
-    };
-
-    // 파일 업로드 처리
-    const handleFileUpload = (event) => {
-      const files = Array.from(event.target.files);
-
-      if (files.length > 5) {
-        alert('최대 5개의 이미지만 업로드할 수 있습니다.');
-        return;
-      }
-
-      selectedFiles.value = files;
-      imagePreview.value = [];
-
-      files.forEach((file, index) => {
-        if (file.size > 5 * 1024 * 1024) { // 5MB
-          alert(`${file.name}의 크기가 너무 큽니다. 5MB 이하의 파일을 선택해주세요.`);
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          imagePreview.value.push({
-            url: e.target.result,
-            file: file
-          });
-        };
-        reader.readAsDataURL(file);
-      });
-    };
-
-    // 이미지 삭제
-    const removeImage = (index) => {
-      imagePreview.value.splice(index, 1);
-      selectedFiles.value.splice(index, 1);
-
-      // 파일 입력 필드 초기화
-      if (fileInput.value) {
-        fileInput.value.value = '';
-      }
-    };
-
-    // 지도 초기화
-    const initMap = () => {
-      if (!window.kakao || !window.kakao.maps) {
-        setTimeout(initMap, 100);
-        return;
-      }
-
-      const container = document.getElementById('map');
-      if (!container) return;
-
-      const options = {
-        center: new window.kakao.maps.LatLng(formData.latitude, formData.longitude),
-        level: 3
-      };
-
-      map.value = new window.kakao.maps.Map(container, options);
-
-      // 초기 마커 생성
-      const initialCoords = new window.kakao.maps.LatLng(formData.latitude, formData.longitude);
-      updateMarker(initialCoords);
-
-      // 지도 클릭 이벤트
-      window.kakao.maps.event.addListener(map.value, 'click', (mouseEvent) => {
-        const latlng = mouseEvent.latLng;
-
-        formData.latitude = latlng.getLat();
-        formData.longitude = latlng.getLng();
-
-        updateMarker(latlng);
-      });
-    };
-
-    // 마커 업데이트
-    const updateMarker = (position) => {
-      if (marker.value) {
-        marker.value.setMap(null);
-      }
-
-      marker.value = new window.kakao.maps.Marker({
-        position: position,
-        map: map.value
-      });
-    };
-
-    // 폼 제출
-    const onSubmit = async () => {
-      try {
-        loading.value = true;
-        message.value = '';
-
-        // FormData 생성
-        const submitData = new FormData();
-
-        // 기본 데이터 추가
-        Object.keys(formData).forEach(key => {
-          if (formData[key] !== null && formData[key] !== undefined) {
-            submitData.append(key, formData[key]);
-          }
-        });
-
-        // 이미지 파일 추가
-        selectedFiles.value.forEach((file) => {
-          submitData.append('images', file);
-        });
-
-        emit('submit', submitData);
-
-      } catch (error) {
-        console.error('폼 제출 실패:', error);
-        message.value = '등록 중 오류가 발생했습니다.';
-        messageType.value = 'error';
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    // 초기 데이터 로드
-    const loadInitialData = () => {
-      if (props.isEdit && props.hotplace) {
-        Object.assign(formData, {
-          title: props.hotplace.title,
-          latitude: props.hotplace.latitude,
-          longitude: props.hotplace.longitude,
-          rating: props.hotplace.rating,
-          contentTypeId: props.hotplace.contentTypeId,
-          description: props.hotplace.description || '',
-          review: props.hotplace.review || '',
-          recommendationReason: props.hotplace.recommendationReason || ''
-        });
-
-        existingImages.value = props.hotplace.imageUrls || [];
-      }
-    };
-
-    // 지도 API 로드
-    const loadKakaoMapScript = () => {
-      if (window.kakao && window.kakao.maps) {
-        initMap();
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.onload = () => {
-        window.kakao.maps.load(() => {
-          initMap();
-        });
-      };
-      script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`;
-      document.head.appendChild(script);
-    };
-
-    // 검색 결과 외부 클릭 시 숨기기
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.search-container')) {
-        showSearchResults.value = false;
-      }
-    };
-
-    // 좌표 변경 감지하여 지도 업데이트
-    watch(() => [formData.latitude, formData.longitude], ([newLat, newLng]) => {
-      if (map.value && newLat && newLng) {
-        const newPosition = new window.kakao.maps.LatLng(newLat, newLng);
-        map.value.setCenter(newPosition);
-        updateMarker(newPosition);
-      }
-    });
-
-    // 컴포넌트 마운트
-    onMounted(() => {
-      fetchContentTypes();
-      loadInitialData();
-      setTimeout(loadKakaoMapScript, 100);
-
-      // 외부 클릭 이벤트 리스너 추가
-      document.addEventListener('click', handleClickOutside);
-    });
-
-    // 컴포넌트 언마운트 시 이벤트 리스너 제거
-    onUnmounted(() => {
-      document.removeEventListener('click', handleClickOutside);
-      if (searchTimeout.value) {
-        clearTimeout(searchTimeout.value);
-      }
-    });
-
-    return {
-      loading,
-      message,
-      messageType,
-      fileInput,
-      searchQuery,
-      searchResults,
-      showSearchResults,
-      searchLoading,
-      formData,
-      contentTypes,
-      imagePreview,
-      existingImages,
-      isFormValid,
-      getCategoryIcon,
-      setRating,
-      onSearchInput,
-      selectPlace,
-      clearSearch,
-      handleFileUpload,
-      removeImage,
-      onSubmit
-    };
+  isEdit: {
+    type: Boolean,
+    default: false
   }
-};
+})
+
+// Emits 정의
+const emit = defineEmits(['submit', 'cancel'])
+
+// 반응형 데이터 정의
+const loading = ref(false)
+const message = ref('')
+const messageType = ref('')
+const fileInput = ref(null)
+const map = ref(null)
+const marker = ref(null)
+
+// 검색 관련 상태
+const searchQuery = ref('')
+const searchResults = ref([])
+const showSearchResults = ref(false)
+const searchLoading = ref(false)
+const searchTimeout = ref(null)
+
+// 폼 데이터
+const formData = reactive({
+  title: '',
+  latitude: 37.5665,
+  longitude: 126.9780,
+  rating: 5,
+  contentTypeId: '',
+  description: '',
+  review: '',
+  recommendationReason: ''
+})
+
+// 카테고리 데이터
+const contentTypes = ref([])
+const imagePreview = ref([])
+const selectedFiles = ref([])
+const existingImages = ref([])
+
+// 폼 유효성 검사
+const isFormValid = computed(() => {
+  return formData.title &&
+         formData.contentTypeId &&
+         formData.latitude &&
+         formData.longitude &&
+         formData.rating >= 1 &&
+         formData.rating <= 5
+})
+
+// 카테고리별 아이콘 매핑
+const getCategoryIcon = (categoryCode) => {
+  const iconMap = {
+    'AT4': '🏛️', // 관광명소
+    'AD5': '🏨', // 숙박
+    'FD6': '🍽️', // 음식점
+    'CE7': '☕', // 카페
+    'MT1': '🏪', // 대형마트
+    'CS2': '🏪', // 편의점
+    'PK6': '🚗', // 주차장
+    'OL7': '⛽', // 주유소, 충전소
+    'SW8': '🚇', // 지하철역
+    'BK9': '🏦', // 은행
+    'CT1': '🏛️', // 문화시설
+    'AG2': '🏢', // 중개업소
+    'PO3': '🏛️', // 공공기관
+    'AC5': '📚', // 학교
+    'PS3': '🏥', // 병원
+    'PM9': '💊', // 약국
+    'HP8': '🏥'  // 병원
+  }
+  return iconMap[categoryCode] || '📍'
+}
+
+// 카테고리 목록 조회
+const fetchContentTypes = async () => {
+  try {
+    const { data } = await hotplaceService.getContentTypes()
+    contentTypes.value = data.contentList || []
+  } catch (error) {
+    console.error('카테고리 목록 조회 실패:', error)
+  }
+}
+
+// 평점 설정
+const setRating = (rating) => {
+  formData.rating = rating
+}
+
+// 검색 입력 처리
+const onSearchInput = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+
+  if (!searchQuery.value.trim()) {
+    searchResults.value = []
+    showSearchResults.value = false
+    return
+  }
+
+  searchTimeout.value = setTimeout(() => {
+    performSearch()
+  }, 100)
+}
+
+// 검색 실행
+const performSearch = async () => {
+  if (!searchQuery.value.trim()) return
+
+  try {
+    searchLoading.value = true
+
+    if (!window.kakao || !window.kakao.maps) {
+      alert('지도 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')
+      return
+    }
+
+    const places = new window.kakao.maps.services.Places()
+
+    places.keywordSearch(searchQuery.value, (result, status) => {
+      searchLoading.value = false
+
+      if (status === window.kakao.maps.services.Status.OK) {
+        // 최대 5개 결과만 표시
+        searchResults.value = result.slice(0, 5)
+        showSearchResults.value = true
+      } else {
+        searchResults.value = []
+        showSearchResults.value = true
+      }
+    })
+
+  } catch (error) {
+    console.error('검색 실패:', error)
+    searchLoading.value = false
+    searchResults.value = []
+  }
+}
+
+// 장소 선택
+const selectPlace = (place) => {
+  // 선택된 장소 정보로 폼 업데이트
+  formData.latitude = parseFloat(place.y)
+  formData.longitude = parseFloat(place.x)
+
+  // 장소명이 비어있으면 자동으로 설정
+  if (!formData.title.trim()) {
+    formData.title = place.place_name
+  }
+
+  // 검색창에 선택된 장소명 표시
+  searchQuery.value = place.place_name
+
+  // 검색 결과 숨기기
+  showSearchResults.value = false
+  searchResults.value = []
+
+  // 지도 업데이트
+  if (map.value) {
+    const coords = new window.kakao.maps.LatLng(place.y, place.x)
+    map.value.setCenter(coords)
+    updateMarker(coords)
+  }
+}
+
+// 검색 초기화
+const clearSearch = () => {
+  searchQuery.value = ''
+  searchResults.value = []
+  showSearchResults.value = false
+}
+
+// 파일 업로드 처리
+const handleFileUpload = (event) => {
+  const files = Array.from(event.target.files)
+
+  if (files.length > 5) {
+    alert('최대 5개의 이미지만 업로드할 수 있습니다.')
+    return
+  }
+
+  selectedFiles.value = files
+  imagePreview.value = []
+
+  files.forEach((file, index) => {
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      alert(`${file.name}의 크기가 너무 큽니다. 5MB 이하의 파일을 선택해주세요.`)
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      imagePreview.value.push({
+        url: e.target.result,
+        file: file
+      })
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+// 이미지 삭제
+const removeImage = (index) => {
+  imagePreview.value.splice(index, 1)
+  selectedFiles.value.splice(index, 1)
+
+  // 파일 입력 필드 초기화
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+// 지도 초기화
+const initMap = () => {
+  if (!window.kakao || !window.kakao.maps) {
+    setTimeout(initMap, 100)
+    return
+  }
+
+  const container = document.getElementById('map')
+  if (!container) return
+
+  const options = {
+    center: new window.kakao.maps.LatLng(formData.latitude, formData.longitude),
+    level: 3
+  }
+
+  map.value = new window.kakao.maps.Map(container, options)
+
+  // 초기 마커 생성
+  const initialCoords = new window.kakao.maps.LatLng(formData.latitude, formData.longitude)
+  updateMarker(initialCoords)
+
+  // 지도 클릭 이벤트
+  window.kakao.maps.event.addListener(map.value, 'click', (mouseEvent) => {
+    const latlng = mouseEvent.latLng
+
+    formData.latitude = latlng.getLat()
+    formData.longitude = latlng.getLng()
+
+    updateMarker(latlng)
+  })
+}
+
+// 마커 업데이트
+const updateMarker = (position) => {
+  if (marker.value) {
+    marker.value.setMap(null)
+  }
+
+  marker.value = new window.kakao.maps.Marker({
+    position: position,
+    map: map.value
+  })
+}
+
+// 폼 제출
+const onSubmit = async () => {
+  try {
+    loading.value = true
+    message.value = ''
+
+    // FormData 생성
+    const submitData = new FormData()
+
+    // 기본 데이터 추가
+    Object.keys(formData).forEach(key => {
+      if (formData[key] !== null && formData[key] !== undefined) {
+        submitData.append(key, formData[key])
+      }
+    })
+
+    // 이미지 파일 추가
+    selectedFiles.value.forEach((file) => {
+      submitData.append('images', file)
+    })
+
+    emit('submit', submitData)
+
+  } catch (error) {
+    console.error('폼 제출 실패:', error)
+    message.value = '등록 중 오류가 발생했습니다.'
+    messageType.value = 'error'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 초기 데이터 로드
+const loadInitialData = () => {
+  if (props.isEdit && props.hotplace) {
+    Object.assign(formData, {
+      title: props.hotplace.title,
+      latitude: props.hotplace.latitude,
+      longitude: props.hotplace.longitude,
+      rating: props.hotplace.rating,
+      contentTypeId: props.hotplace.contentTypeId,
+      description: props.hotplace.description || '',
+      review: props.hotplace.review || '',
+      recommendationReason: props.hotplace.recommendationReason || ''
+    })
+
+    existingImages.value = props.hotplace.imageUrls || []
+  }
+}
+
+// 지도 API 로드
+const loadKakaoMapScript = () => {
+  if (window.kakao && window.kakao.maps) {
+    initMap()
+    return
+  }
+
+  const script = document.createElement('script')
+  script.onload = () => {
+    window.kakao.maps.load(() => {
+      initMap()
+    })
+  }
+  script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`
+  document.head.appendChild(script)
+}
+
+// 검색 결과 외부 클릭 시 숨기기
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.search-container')) {
+    showSearchResults.value = false
+  }
+}
+
+// 좌표 변경 감지하여 지도 업데이트
+watch(() => [formData.latitude, formData.longitude], ([newLat, newLng]) => {
+  if (map.value && newLat && newLng) {
+    const newPosition = new window.kakao.maps.LatLng(newLat, newLng)
+    map.value.setCenter(newPosition)
+    updateMarker(newPosition)
+  }
+})
+
+// 컴포넌트 마운트
+onMounted(() => {
+  fetchContentTypes()
+  loadInitialData()
+  setTimeout(loadKakaoMapScript, 100)
+
+  // 외부 클릭 이벤트 리스너 추가
+  document.addEventListener('click', handleClickOutside)
+})
+
+// 컴포넌트 언마운트 시 이벤트 리스너 제거
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+})
 </script>
 
 <style scoped>

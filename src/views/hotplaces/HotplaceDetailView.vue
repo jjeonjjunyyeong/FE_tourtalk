@@ -122,6 +122,7 @@
         </div>
 
         <!-- 우측 사이드바 -->
+        <!-- 우측 사이드바의 지도 카드 부분만 수정 -->
         <div class="col-lg-4">
           <!-- 지도 -->
           <div class="card shadow-sm mb-4">
@@ -133,17 +134,49 @@
               <div id="map" style="height: 300px; border-radius: 0.375rem;"></div>
 
               <div class="mt-3">
-                <div class="d-flex justify-content-between align-items-center">
+                <!-- 주소 표시 -->
+                <div class="address-info mb-2">
+                  <div v-if="loadingAddress" class="text-muted small">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    주소를 가져오는 중...
+                  </div>
+                  <div v-else-if="address" class="address-text">
+                    <i class="bi bi-house-door me-1"></i>
+                    {{ address }}
+                  </div>
+                  <div v-else class="text-muted small">
+                    주소 정보를 가져올 수 없습니다.
+                  </div>
+                </div>
+
+                <!-- 좌표 정보 보기 버튼 -->
+                <div class="mb-2">
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-secondary"
+                    @click="toggleCoordinates"
+                  >
+                    <i class="bi bi-geo me-1"></i>
+                    {{ showCoordinates ? '좌표 정보 숨기기' : '좌표 정보 보기' }}
+                  </button>
+                </div>
+
+                <!-- 좌표 정보 (토글) -->
+                <div v-if="showCoordinates" class="coordinates-info mb-3 p-2 bg-light rounded">
                   <small class="text-muted">
-                    위도: {{ hotplace.latitude }}<br>
-                    경도: {{ hotplace.longitude }}
+                    <div>위도: {{ hotplace.latitude }}</div>
+                    <div>경도: {{ hotplace.longitude }}</div>
                   </small>
+                </div>
+
+                <!-- 카카오맵 링크 -->
+                <div class="d-flex justify-content-end">
                   <a
                     :href="`https://map.kakao.com/link/map/${hotplace.title},${hotplace.latitude},${hotplace.longitude}`"
                     target="_blank"
                     class="btn btn-sm btn-outline-primary"
                   >
-                    <i class="bi bi-map me-1"></i>카카오맵
+                    <i class="bi bi-map me-1"></i>카카오맵에서 보기
                   </a>
                 </div>
               </div>
@@ -213,6 +246,9 @@ const error = ref(null)
 const deleteLoading = ref(false)
 const deleteModalRef = ref(null)
 let deleteModal = null
+const address = ref('')
+const loadingAddress = ref(false)
+const showCoordinates = ref(false)
 
 // 핫플레이스 상세 정보 조회
 const fetchHotplaceDetail = async () => {
@@ -252,17 +288,21 @@ const fetchHotplaceDetail = async () => {
 }
 
 // 지도 초기화
-const initMap = () => {
+const initMap = async () => {
   if (!hotplace.value || !hotplace.value.latitude || !hotplace.value.longitude) return
 
   if (window.kakao && window.kakao.maps) {
     createMap()
+    await loadAddress()
   } else {
     const script = document.createElement('script')
     script.onload = () => {
-      window.kakao.maps.load(() => createMap())
+      window.kakao.maps.load(async () => {
+        createMap()
+        await loadAddress()
+      })
     }
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&autoload=false`
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`
     document.head.appendChild(script)
   }
 }
@@ -308,7 +348,57 @@ const formatDate = (dateString) => {
   if (!dateString) return ''
   return new Date(dateString).toLocaleDateString('ko-KR')
 }
+const getAddressFromCoords = async (lat, lng) => {
+  if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
+    console.error('카카오맵 서비스가 로드되지 않았습니다.')
+    return
+  }
 
+  return new Promise((resolve, reject) => {
+    const geocoder = new window.kakao.maps.services.Geocoder()
+    
+    geocoder.coord2Address(lng, lat, (result, status) => {
+      if (status === window.kakao.maps.services.Status.OK) {
+        const detailAddr = result[0]?.address
+        if (detailAddr) {
+          // 상세 주소 조합 (도로명 주소 우선, 없으면 지번 주소)
+          const roadAddr = result[0]?.road_address
+          const address = roadAddr ? 
+            `${roadAddr.address_name}` : 
+            `${detailAddr.region_1depth_name} ${detailAddr.region_2depth_name} ${detailAddr.region_3depth_name}`
+          
+          resolve(address)
+        } else {
+          reject('주소 정보를 찾을 수 없습니다.')
+        }
+      } else {
+        reject('주소 변환에 실패했습니다.')
+      }
+    })
+  })
+}
+
+// 좌표 정보 토글 함수
+const toggleCoordinates = () => {
+  showCoordinates.value = !showCoordinates.value
+}
+
+// 주소 로드 함수
+const loadAddress = async () => {
+  try {
+    loadingAddress.value = true
+    const addressResult = await getAddressFromCoords(
+      hotplace.value.latitude, 
+      hotplace.value.longitude
+    )
+    address.value = addressResult
+  } catch (error) {
+    console.error('주소 변환 실패:', error)
+    address.value = ''
+  } finally {
+    loadingAddress.value = false
+  }
+}
 // 여행 계획에 추가
 const addToTripPlan = () => {
   if (!hotplace.value) return
@@ -463,6 +553,21 @@ onMounted(async () => {
 }
 
 #map {
+  border: 1px solid #dee2e6;
+}
+
+.address-info {
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.5rem;
+}
+
+.address-text {
+  font-weight: 500;
+  color: #495057;
+}
+
+.coordinates-info {
+  font-family: 'Courier New', monospace;
   border: 1px solid #dee2e6;
 }
 </style>
