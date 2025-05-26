@@ -1,3 +1,230 @@
+<template>
+  <div class="trip-plan-view">
+    <h2 class="mb-4">여행 계획</h2>
+
+    <div class="row">
+      <!-- 좌측: 선택된 관광지 목록 -->
+      <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">선택한 관광지</h5>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-danger" @click="clearAllAttractions" :disabled="selectedAttractions.length === 0">
+                전체 삭제
+              </button>
+            </div>
+          </div>
+          <div class="card-body p-0">
+
+            <div v-if="selectedAttractions.length === 0" class="text-center py-5">
+              <i class="bi bi-map display-4 text-muted"></i>
+              <p class="mt-2">선택된 관광지가 없습니다.</p>
+              <div class="d-flex flex-column gap-2">
+                <router-link to="/attractions" class="btn btn-primary">
+                  <i class="bi bi-search me-1"></i>
+                  관광지 검색하기
+                </router-link>
+                <button class="btn btn-outline-primary" @click="showSavedPlansModal">
+                  <i class="bi bi-folder me-1"></i>
+                  저장된 일정 불러오기
+                </button>
+              </div>
+            </div>
+
+            <draggable
+              v-else
+              v-model="selectedAttractions"
+              group="attractions"
+              item-key="no"
+              class="selected-list"
+              @change="calculateRouteWithAPI"
+            >
+              <template #item="{ element, index }">
+                <div class="selected-item">
+                  <div class="drag-handle">
+                    <i class="bi bi-grip-vertical"></i>
+                  </div>
+
+                  <div class="item-number">{{ index + 1 }}</div>
+
+                  <div class="item-image">
+                    <img
+                      v-if="element.firstImage1"
+                      :src="element.firstImage1"
+                      :alt="element.title"
+                      class="rounded"
+                    >
+                    <div v-else class="no-image rounded">
+                      <i class="bi bi-image"></i>
+                    </div>
+                  </div>
+
+                  <div class="item-info">
+                    <div class="item-title">{{ element.title || '제목 없음' }}</div>
+                    <div class="item-location">
+                      {{ element.sido }} {{ element.gugun }}
+                    </div>
+                  </div>
+
+                  <button class="btn btn-sm btn-link text-danger delete-btn" @click="removeAttraction(index)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </template>
+            </draggable>
+          </div>
+
+          <div v-if="selectedAttractions.length > 0" class="card-footer">
+            <div class="d-flex justify-content-between">
+              <button class="btn btn-outline-primary btn-sm" @click="showSavedPlansModal">
+                <i class="bi bi-folder me-1"></i>
+                저장된 일정
+              </button>
+              <button class="btn btn-primary" @click="saveTripPlan">
+                <i class="bi bi-save me-1"></i>
+                여행 계획 저장
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 우측: 지도와 경로 -->
+      <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">여행 경로</h5>
+
+            <!-- 경로 계산 로딩 상태 -->
+            <div v-if="routeLoading" class="route-loading-container">
+              <div class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status">
+                  <span class="visually-hidden">경로 계산 중...</span>
+                </div>
+                <h5>경로를 계산하는 중입니다...</h5>
+                <p class="text-muted">잠시만 기다려주세요.</p>
+              </div>
+            </div>
+
+            <!-- 경로 계산 실패 상태 -->
+            <div v-else-if="routeError" class="route-error-container">
+              <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle display-4 text-warning mb-3"></i>
+                <h5>경로를 찾을 수 없습니다</h5>
+                <p class="text-muted mb-3">{{ routeErrorMessage }}</p>
+                <div class="d-flex gap-2 justify-content-center">
+                  <button class="btn btn-primary" @click="retryRouteCalculation">
+                    <i class="bi bi-arrow-clockwise me-1"></i>
+                    다시 시도
+                  </button>
+                  <button class="btn btn-outline-secondary" @click="showBasicMap">
+                    <i class="bi bi-map me-1"></i>
+                    기본 지도 보기
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 정상 지도 표시 -->
+            <div v-else>
+              <div id="map" style="height: 500px;"></div>
+
+              <div v-if="selectedAttractions.length > 1 && routeInfo" class="route-info mt-3">
+                <div class="alert alert-info">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>총 이동 거리:</strong> {{ formatDistance(routeInfo.totalDistance) }}
+                      <span class="mx-2">|</span>
+                      <strong>예상 소요 시간:</strong> {{ formatDuration(routeInfo.totalTime) }}
+                      <span v-if="routeInfo.tollFare > 0" class="mx-2">|</span>
+                      <span v-if="routeInfo.tollFare > 0">
+                        <strong>통행료:</strong> {{ formatCurrency(routeInfo.tollFare) }}
+                      </span>
+                    </div>
+
+                    <a :href="getNaviUrl()" target="_blank" class="btn btn-sm btn-primary">
+                      <i class="bi bi-signpost-2 me-1"></i>
+                      길찾기
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else-if="selectedAttractions.length === 1" class="route-info mt-3">
+                <div class="alert alert-warning">
+                  <div class="d-flex align-items-center">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <span>경로를 계산하려면 2개 이상의 관광지를 선택하세요.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 날짜 및 메모 -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">여행 정보</h5>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="tripName" class="form-label">여행 이름</label>
+                <input type="text" id="tripName" v-model="tripPlan.name" class="form-control" placeholder="여행 이름을 입력하세요">
+              </div>
+
+              <div class="col-md-3">
+                <label for="startDate" class="form-label">시작 날짜</label>
+                <input type="date" id="startDate" v-model="tripPlan.startDate" class="form-control">
+              </div>
+
+              <div class="col-md-3">
+                <label for="endDate" class="form-label">종료 날짜</label>
+                <input type="date" id="endDate" v-model="tripPlan.endDate" class="form-control">
+              </div>
+
+              <div class="col-12">
+                <label for="tripMemo" class="form-label">메모</label>
+                <textarea
+                  id="tripMemo"
+                  v-model="tripPlan.description"
+                  class="form-control"
+                  rows="4"
+                  placeholder="여행에 대한 메모를 남겨보세요"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 저장된 일정 목록 모달 -->
+    <div class="modal fade" id="savedPlansModal" tabindex="-1" aria-hidden="true" ref="savedPlansModalRef">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">저장된 여행 계획</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <!-- SavedTripPlanList 컴포넌트 사용 -->
+            <SavedTripPlanList
+              v-model="selectedPlanIds"
+              @load-plan="loadTripPlan"
+              @plans-updated="onPlansUpdated"
+              ref="savedTripPlanListRef"
+            />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
@@ -521,3 +748,150 @@ onMounted(async () => {
   }, 100)
 })
 </script>
+
+<style scoped>
+.selected-list {
+  max-height: 500px;
+}
+
+.selected-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.selected-item:last-child {
+  border-bottom: none;
+}
+
+.drag-handle {
+  cursor: move;
+  margin-right: 0.5rem;
+  color: #adb5bd;
+}
+
+.item-number {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  background-color: #4361ee;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.item-image {
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  margin-right: 0.75rem;
+}
+
+.item-image img, .item-image .no-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-image .no-image {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8f9fa;
+  color: #adb5bd;
+}
+
+.item-info {
+  flex-grow: 1;
+}
+
+.item-title {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-location {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.delete-btn {
+  padding: 0;
+  margin-left: 0.5rem;
+}
+
+.modal-dialog {
+  max-width: 1200px;
+}
+
+/* 경로 계산 관련 스타일 */
+.route-loading-container,
+.route-error-container {
+  min-height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  border-radius: 0.375rem;
+}
+
+.route-loading-container .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+.route-error-container i {
+  color: #f39c12;
+}
+
+/* 경로 정보 박스 스타일 개선 */
+.route-info .alert {
+  border-left: 4px solid #4361ee;
+  background-color: #f8f9ff;
+  border-color: #e3f2fd;
+}
+
+.route-info .alert-warning {
+  border-left-color: #f39c12;
+  background-color: #fffbf0;
+}
+
+/* 지도 컨테이너 스타일 */
+#map {
+  border-radius: 0.375rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 반응형 조정 */
+@media (max-width: 768px) {
+  .selected-list {
+    max-height: 300px;
+  }
+  
+  .route-loading-container,
+  .route-error-container {
+    min-height: 300px;
+  }
+  
+  #map {
+    height: 300px !important;
+  }
+  
+  .route-info .d-flex {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .route-info .d-flex > div {
+    text-align: center;
+  }
+}
+</style>

@@ -122,7 +122,6 @@
         </div>
 
         <!-- 우측 사이드바 -->
-        <!-- 우측 사이드바의 지도 카드 부분만 수정 -->
         <div class="col-lg-4">
           <!-- 지도 -->
           <div class="card shadow-sm mb-4">
@@ -246,6 +245,8 @@ const error = ref(null)
 const deleteLoading = ref(false)
 const deleteModalRef = ref(null)
 let deleteModal = null
+
+// 주소 관련 변수들
 const address = ref('')
 const loadingAddress = ref(false)
 const showCoordinates = ref(false)
@@ -287,67 +288,7 @@ const fetchHotplaceDetail = async () => {
   }
 }
 
-// 지도 초기화
-const initMap = async () => {
-  if (!hotplace.value || !hotplace.value.latitude || !hotplace.value.longitude) return
-
-  if (window.kakao && window.kakao.maps) {
-    createMap()
-    await loadAddress()
-  } else {
-    const script = document.createElement('script')
-    script.onload = () => {
-      window.kakao.maps.load(async () => {
-        createMap()
-        await loadAddress()
-      })
-    }
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_API_KEY}&libraries=services&autoload=false`
-    document.head.appendChild(script)
-  }
-}
-
-// 지도 생성
-const createMap = () => {
-  const container = document.getElementById('map')
-  if (!container) return
-
-  const options = {
-    center: new window.kakao.maps.LatLng(
-      hotplace.value.latitude,
-      hotplace.value.longitude
-    ),
-    level: 3
-  }
-
-  const map = new window.kakao.maps.Map(container, options)
-
-  // 마커 생성
-  const markerPosition = new window.kakao.maps.LatLng(
-    hotplace.value.latitude,
-    hotplace.value.longitude
-  )
-
-  const marker = new window.kakao.maps.Marker({
-    position: markerPosition
-  })
-
-  marker.setMap(map)
-
-  // 인포윈도우 생성
-  const iwContent = `<div style="padding:5px; text-align:center; font-size:12px;"><b>${hotplace.value.title}</b></div>`
-  const infowindow = new window.kakao.maps.InfoWindow({
-    content: iwContent
-  })
-
-  infowindow.open(map, marker)
-}
-
-// 날짜 포맷팅
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('ko-KR')
-}
+// 좌표를 주소로 변환하는 함수
 const getAddressFromCoords = async (lat, lng) => {
   if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
     console.error('카카오맵 서비스가 로드되지 않았습니다.')
@@ -399,6 +340,69 @@ const loadAddress = async () => {
     loadingAddress.value = false
   }
 }
+
+// 지도 초기화
+const initMap = async () => {
+  if (!hotplace.value || !hotplace.value.latitude || !hotplace.value.longitude) return
+
+  if (window.kakao && window.kakao.maps) {
+    createMap()
+    await loadAddress()
+  } else {
+    const script = document.createElement('script')
+    script.onload = () => {
+      window.kakao.maps.load(async () => {
+        createMap()
+        await loadAddress()
+      })
+    }
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`
+    document.head.appendChild(script)
+  }
+}
+
+// 지도 생성
+const createMap = () => {
+  const container = document.getElementById('map')
+  if (!container) return
+
+  const options = {
+    center: new window.kakao.maps.LatLng(
+      hotplace.value.latitude,
+      hotplace.value.longitude
+    ),
+    level: 3
+  }
+
+  const map = new window.kakao.maps.Map(container, options)
+
+  // 마커 생성
+  const markerPosition = new window.kakao.maps.LatLng(
+    hotplace.value.latitude,
+    hotplace.value.longitude
+  )
+
+  const marker = new window.kakao.maps.Marker({
+    position: markerPosition
+  })
+
+  marker.setMap(map)
+
+  // 인포윈도우 생성
+  const iwContent = `<div style="padding:5px; text-align:center; font-size:12px;"><b>${hotplace.value.title}</b></div>`
+  const infowindow = new window.kakao.maps.InfoWindow({
+    content: iwContent
+  })
+
+  infowindow.open(map, marker)
+}
+
+// 날짜 포맷팅
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('ko-KR')
+}
+
 // 여행 계획에 추가
 const addToTripPlan = () => {
   if (!hotplace.value) return
