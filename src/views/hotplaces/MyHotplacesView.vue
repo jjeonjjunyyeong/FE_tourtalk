@@ -58,7 +58,7 @@
         </div>
       </div>
 
-      <!-- 핫플레이스 목록 -->
+                <!-- 핫플레이스 목록 -->
       <div class="card shadow-sm">
         <div class="card-header bg-light">
           <h5 class="mb-0">내가 등록한 핫플레이스</h5>
@@ -227,170 +227,150 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive, computed, onMounted } from 'vue';
-import hotplaceService from '@/services/hotplace';
+<script setup>
+import { ref, reactive, computed, onMounted} from 'vue'
+import { useRouter } from 'vue-router'
+import hotplaceService from '@/services/hotplace'
 
-export default {
-  name: 'MyHotplacesView',
-  setup() {
-    const hotplaces = ref([]);
-    const pageInfo = ref(null);
-    const loading = ref(false);
-    const deleteLoading = ref(false);
-    const selectedHotplace = ref(null);
-    const deleteModalRef = ref(null);
-    let deleteModal = null;
+const hotplaces = ref([])
+const pageInfo = ref(null)
+const loading = ref(false)
+const deleteLoading = ref(false)
+const selectedHotplace = ref(null)
+const deleteModalRef = ref(null)
+const router = useRouter();
+let deleteModal = null
 
-    // 검색 조건
-    const searchCondition = reactive({
-      page: 1,
-      size: 10
-    });
+// 검색 조건
+const searchCondition = reactive({
+  page: 1,
+  size: 10
+})
 
-    // 통계 계산
-    const totalViews = computed(() => {
-      return hotplaces.value.reduce((sum, hotplace) => sum + (hotplace.viewCount || 0), 0);
-    });
+// 통계 계산
+const totalViews = computed(() => {
+  return hotplaces.value.reduce((sum, hotplace) => sum + (hotplace.viewCount || 0), 0)
+})
 
-    const averageRating = computed(() => {
-      if (hotplaces.value.length === 0) return '0.0';
-      const sum = hotplaces.value.reduce((total, hotplace) => total + hotplace.rating, 0);
-      return (sum / hotplaces.value.length).toFixed(1);
-    });
+const averageRating = computed(() => {
+  if (hotplaces.value.length === 0) return '0.0'
+  const sum = hotplaces.value.reduce((total, hotplace) => total + hotplace.rating, 0)
+  return (sum / hotplaces.value.length).toFixed(1)
+})
 
-    // 화면에 표시할 페이지 번호 계산
-    const displayedPages = computed(() => {
-      if (!pageInfo.value) return [];
+// 화면에 표시할 페이지 번호 계산
+const displayedPages = computed(() => {
+  if (!pageInfo.value) return []
 
-      const { pageNumber, totalPages } = pageInfo.value;
-      const pages = [];
-      const start = Math.max(1, pageNumber - 2);
-      const end = Math.min(totalPages, pageNumber + 2);
+  const { pageNumber, totalPages } = pageInfo.value
+  const pages = []
+  const start = Math.max(1, pageNumber - 2)
+  const end = Math.min(totalPages, pageNumber + 2)
 
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-
-      return pages;
-    });
-
-    // 내 핫플레이스 목록 조회
-    const fetchMyHotplaces = async () => {
-      try {
-        loading.value = true;
-        const { data } = await hotplaceService.getMyHotplaces(searchCondition);
-
-        hotplaces.value = data.content || [];
-        pageInfo.value = {
-          pageNumber: data.pageNumber,
-          pageSize: data.pageSize,
-          totalPages: data.totalPages,
-          totalElements: data.totalElements,
-          first: data.first,
-          last: data.last
-        };
-      } catch (error) {
-        console.error('내 핫플레이스 목록 조회 실패:', error);
-
-        if (error.response?.status === 401) {
-          alert('로그인이 필요합니다.');
-          router.push('/login');
-        } else {
-          hotplaces.value = [];
-          pageInfo.value = null;
-        }
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    // 페이지 변경
-    const onPageChange = (page) => {
-      if (page < 1 || page > pageInfo.value.totalPages) return;
-      if (page === pageInfo.value.pageNumber) return;
-
-      searchCondition.page = page;
-      fetchMyHotplaces();
-
-      // 페이지 상단으로 스크롤
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
-    };
-
-    // 텍스트 줄임
-    const truncateText = (text, maxLength) => {
-      if (!text) return '';
-      if (text.length <= maxLength) return text;
-      return text.substring(0, maxLength) + '...';
-    };
-
-    // 날짜 포맷팅
-    const formatDate = (dateString) => {
-      if (!dateString) return '';
-      return new Date(dateString).toLocaleDateString('ko-KR');
-    };
-
-    // 삭제 확인
-    const confirmDelete = (hotplace) => {
-      selectedHotplace.value = hotplace;
-      deleteModal.show();
-    };
-
-    // 핫플레이스 삭제
-    const deleteHotplace = async () => {
-      if (!selectedHotplace.value) return;
-
-      try {
-        deleteLoading.value = true;
-
-        await hotplaceService.deleteHotplace(selectedHotplace.value.id);
-
-        deleteModal.hide();
-        alert('핫플레이스가 삭제되었습니다.');
-
-        // 목록 새로고침
-        await fetchMyHotplaces();
-
-      } catch (error) {
-        console.error('핫플레이스 삭제 실패:', error);
-        alert('삭제 중 오류가 발생했습니다.');
-      } finally {
-        deleteLoading.value = false;
-        selectedHotplace.value = null;
-      }
-    };
-
-    // 컴포넌트 마운트
-    onMounted(async () => {
-      // Bootstrap 모달 초기화
-      const { Modal } = await import('bootstrap');
-      deleteModal = new Modal(deleteModalRef.value);
-
-      // 데이터 로드
-      fetchMyHotplaces();
-    });
-
-    return {
-      hotplaces,
-      pageInfo,
-      loading,
-      deleteLoading,
-      selectedHotplace,
-      deleteModalRef,
-      totalViews,
-      averageRating,
-      displayedPages,
-      onPageChange,
-      truncateText,
-      formatDate,
-      confirmDelete,
-      deleteHotplace
-    };
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
   }
-};
+
+  return pages
+})
+
+// 내 핫플레이스 목록 조회
+const fetchMyHotplaces = async () => {
+  try {
+    loading.value = true
+    const { data } = await hotplaceService.getMyHotplaces(searchCondition)
+
+    hotplaces.value = data.content || []
+    pageInfo.value = {
+      pageNumber: data.pageNumber,
+      pageSize: data.pageSize,
+      totalPages: data.totalPages,
+      totalElements: data.totalElements,
+      first: data.first,
+      last: data.last
+    }
+  } catch (error) {
+    console.error('내 핫플레이스 목록 조회 실패:', error)
+
+    if (error.response?.status === 401) {
+      alert('로그인이 필요합니다.')
+      router.push('/login')
+    } else {
+      hotplaces.value = []
+      pageInfo.value = null
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 페이지 변경
+const onPageChange = (page) => {
+  if (page < 1 || page > pageInfo.value.totalPages) return
+  if (page === pageInfo.value.pageNumber) return
+
+  searchCondition.page = page
+  fetchMyHotplaces()
+
+  // 페이지 상단으로 스크롤
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  })
+}
+
+// 텍스트 줄임
+const truncateText = (text, maxLength) => {
+  if (!text) return ''
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength) + '...'
+}
+
+// 날짜 포맷팅
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('ko-KR')
+}
+
+// 삭제 확인
+const confirmDelete = (hotplace) => {
+  selectedHotplace.value = hotplace
+  deleteModal.show()
+}
+
+// 핫플레이스 삭제
+const deleteHotplace = async () => {
+  if (!selectedHotplace.value) return
+
+  try {
+    deleteLoading.value = true
+
+    await hotplaceService.deleteHotplace(selectedHotplace.value.id)
+
+    deleteModal.hide()
+    alert('핫플레이스가 삭제되었습니다.')
+
+    // 목록 새로고침
+    await fetchMyHotplaces()
+
+  } catch (error) {
+    console.error('핫플레이스 삭제 실패:', error)
+    alert('삭제 중 오류가 발생했습니다.')
+  } finally {
+    deleteLoading.value = false
+    selectedHotplace.value = null
+  }
+}
+
+// 컴포넌트 마운트
+onMounted(async () => {
+  // Bootstrap 모달 초기화
+  const { Modal } = await import('bootstrap')
+  deleteModal = new Modal(deleteModalRef.value)
+
+  // 데이터 로드
+  fetchMyHotplaces()
+})
 </script>
 
 <style scoped>

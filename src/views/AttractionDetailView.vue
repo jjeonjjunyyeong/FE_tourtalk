@@ -26,83 +26,117 @@
         <div class="col-lg-8">
           <!-- 기본 정보 -->
           <div class="card shadow-sm mb-4">
-            <div class="attraction-image">
-              <img
-                v-if="attraction.firstImage1"
-                :src="attraction.firstImage1"
-                :alt="attraction.title"
-                class="img-fluid w-100"
-              >
-              <div v-else class="no-image">
-                <i class="bi bi-image"></i>
-                <span>이미지 없음</span>
-              </div>
-
-              <!-- 뱃지 -->
-              <div class="badge-container">
-                <span class="badge bg-primary me-2">{{ attraction.contentTypeName }}</span>
-                <span class="badge bg-info">
-                  <i class="bi bi-eye me-1"></i> {{ attraction.viewCnt }}
-                </span>
-              </div>
-            </div>
-
-            <div class="card-body">
-              <h2 class="card-title">{{ attraction.title }}</h2>
-              <p class="address">
-                <i class="bi bi-geo-alt-fill"></i>
-                {{ attraction.sido }} {{ attraction.gugun }} {{ attraction.addr }}
-              </p>
-
-              <hr>
-
-              <div class="description" v-if="attraction.overview">
-                <div v-html="sanitizeHTML(attraction.overview)"></div>
-              </div>
-              <p v-else class="text-muted">상세 설명이 없습니다.</p>
-            </div>
-          </div>
-
-          <!-- 연락처 및 추가 정보 -->
-          <div class="card shadow-sm mb-4">
-            <div class="card-body">
-              <h4>연락처 및 추가 정보</h4>
-
-              <div class="row mt-3">
-                <div class="col-md-6">
-                  <div class="info-item">
-                    <div class="info-label">
-                      <i class="bi bi-telephone"></i> 연락처
-                    </div>
-                    <div class="info-value">
-                      {{ attraction.tel || '정보 없음' }}
-                    </div>
+            <div class="row g-0">
+              <!-- 이미지 영역 -->
+              <div class="col-md-5">
+                <div class="image-container">
+                  <img
+                    v-if="attraction.firstImage1"
+                    :src="attraction.firstImage1"
+                    class="img-fluid rounded-start h-100"
+                    :alt="attraction.title"
+                    style="object-fit: cover; width: 100%;"
+                  >
+                  <div v-else class="no-image">
+                    <i class="bi bi-image"></i>
+                    <span>이미지 없음</span>
                   </div>
                 </div>
+              </div>
 
-                <div class="col-md-6">
-                  <div class="info-item">
-                    <div class="info-label">
-                      <i class="bi bi-globe"></i> 웹사이트
+              <!-- 정보 영역 -->
+              <div class="col-md-7">
+                <div class="card-body">
+                  <div class="d-flex align-items-center mb-2">
+                    <span class="badge bg-primary me-2">{{ attraction.contentTypeName }}</span>
+                    <span class="badge bg-info">
+                      <i class="bi bi-eye me-1"></i> {{ attraction.viewCnt }}
+                    </span>
+                  </div>
+
+                  <h3 class="card-title mb-2">{{ attraction.title }}</h3>
+
+                  <p class="address mb-3">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    {{ attraction.sido }} {{ attraction.gugun }} {{ attraction.addr }}
+                  </p>
+
+                  <div class="info-grid">
+                    <div class="info-item" v-if="attraction.tel">
+                      <div class="info-label">
+                        <i class="bi bi-telephone me-1"></i> 연락처
+                      </div>
+                      <div class="info-value">{{ attraction.tel }}</div>
                     </div>
-                    <div class="info-value">
-                      <a v-if="attraction.homepage" :href="attraction.homepage" target="_blank" rel="noopener">
-                        홈페이지 방문
-                      </a>
-                      <span v-else>정보 없음</span>
+
+                    <div class="info-item" v-if="attraction.homepage">
+                      <div class="info-label">
+                        <i class="bi bi-globe me-1"></i> 웹사이트
+                      </div>
+                      <div class="info-value">
+                        <a :href="attraction.homepage" target="_blank" rel="noopener">
+                          홈페이지 방문
+                        </a>
+                      </div>
                     </div>
+                  </div>
+
+                  <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-outline-primary" @click="$emit('view-map')">
+                      <i class="bi bi-map me-1"></i> 지도보기
+                    </button>
+                    <button class="btn btn-primary" @click="$emit('add-to-plan')">
+                      <i class="bi bi-plus-circle me-1"></i> 여행 계획에 추가
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 지도 -->
-          <div class="card shadow-sm mb-4">
+          <!-- 상세 설명 -->
+          <div class="card shadow-sm mb-4" v-if="attraction.overview">
             <div class="card-body">
-              <h4>위치 정보</h4>
+              <h4 class="mb-3">상세 설명</h4>
+              <div class="description" v-html="sanitizeHTML(attraction.overview)"></div>
+            </div>
+          </div>
 
-              <div id="map" class="mt-3" style="height: 400px;"></div>
+          <!-- 주변 관광지 -->
+          <div class="card shadow-sm mb-4" v-if="nearbyAttractions && nearbyAttractions.length > 0">
+            <div class="card-header bg-light">
+              <h5 class="mb-0">주변 관광지</h5>
+            </div>
+            <div class="card-body">
+              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+                <div
+                  v-for="nearby in nearbyAttractions"
+                  :key="nearby.no"
+                  class="col"
+                >
+                  <div class="card h-100 nearby-card" @click="$emit('select-nearby', nearby.no)">
+                    <div class="image-container">
+                      <img
+                        v-if="nearby.firstImage1"
+                        :src="nearby.firstImage1"
+                        :alt="nearby.title"
+                        class="card-img-top"
+                      >
+                      <div v-else class="no-image">
+                        <i class="bi bi-image"></i>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <h6 class="card-title text-truncate" :title="nearby.title">
+                        {{ nearby.title }}
+                      </h6>
+                      <p class="card-text small text-muted">
+                        {{ nearby.contentTypeName }} | {{ nearby.gugun }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -185,208 +219,193 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import attractionService from '@/services/attraction';
+<script setup>
+import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import attractionService from '@/services/attraction'
 
-export default {
-  name: 'AttractionDetailView',
-  props: {
-    no: {
-      type: [Number, String],
-      required: true
-    }
-  },
-  setup(props) {
-    const route = useRoute();
-    const attraction = ref(null);
-    const nearbyAttractions = ref([]);
-    const loading = ref(true);
-    const error = ref(null);
-    const map = ref(null);
-    const isAddedToPlan = ref(false);
-    const toastMessage = ref('');
-    const showToastMessage = ref(false);
-
-    // HTML 태그 필터링 (악의적인 스크립트 방지)
-    const sanitizeHTML = (html) => {
-      // 실제 프로덕션에서는 DOMPurify 등의 라이브러리 사용 권장
-      return html
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/javascript:/gi, '');
-    };
-
-    // 관광지 상세 정보 조회
-    const fetchAttractionDetail = async () => {
-      const attractionId = Number(props.no);
-      if (isNaN(attractionId)) {
-        error.value = '잘못된 관광지 ID 입니다.';
-        loading.value = false;
-        return;
-      }
-
-      try {
-        loading.value = true;
-        const { data } = await attractionService.getAttractionDetail(attractionId);
-
-        if (!data) {
-          error.value = '관광지 정보를 찾을 수 없습니다.';
-          return;
-        }
-
-        attraction.value = data.attraction;
-        nearbyAttractions.value = data.nearbyAttractions || [];
-
-        // 지도 초기화 (다음 틱에서 실행)
-        setTimeout(() => {
-          initMap();
-        }, 100);
-      } catch (err) {
-        console.error('관광지 상세 정보 조회 실패:', err);
-        error.value = '관광지 정보를 불러오는데 실패했습니다.';
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    // 지도 초기화
-    const initMap = () => {
-      if (!attraction.value || !attraction.value.latitude || !attraction.value.longitude) return;
-
-      // 카카오맵 API가 로드되었는지 확인
-      if (window.kakao && window.kakao.maps) {
-        createMap();
-      } else {
-        // 카카오맵 API 동적 로드
-        const script = document.createElement('script');
-        script.onload = () => {
-          // API 로드 후 지도 생성
-          const callback = () => createMap();
-          window.kakao.maps.load(callback);
-        };
-        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_API_KEY&autoload=false`;
-        document.head.appendChild(script);
-      }
-    };
-
-    // 지도 생성
-    const createMap = () => {
-      const container = document.getElementById('map');
-      if (!container) return;
-
-      const options = {
-        center: new window.kakao.maps.LatLng(
-          attraction.value.latitude,
-          attraction.value.longitude
-        ),
-        level: attraction.value.mapLevel || 3
-      };
-
-      map.value = new window.kakao.maps.Map(container, options);
-
-      // 마커 생성
-      const markerPosition = new window.kakao.maps.LatLng(
-        attraction.value.latitude,
-        attraction.value.longitude
-      );
-
-      const marker = new window.kakao.maps.Marker({
-        position: markerPosition
-      });
-
-      // 마커 지도에 표시
-      marker.setMap(map.value);
-
-      // 인포윈도우 생성
-      const iwContent = `<div style="padding:5px;">${attraction.value.title}</div>`;
-      const infowindow = new window.kakao.maps.InfoWindow({
-        content: iwContent
-      });
-
-      // 마커에 인포윈도우 표시
-      infowindow.open(map.value, marker);
-    };
-
-    // 토스트 메시지 생성
-    const generateToastMessage = () => {
-      const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
-      const attractionNames = tripPlan.attractions.map(attr => attr.title).join(', ');
-      return `등록된 일정 : ${attractionNames || '없음'}`;
-    };
-
-    // 토스트 보여주기
-    const showToast = () => {
-      toastMessage.value = generateToastMessage();
-      showToastMessage.value = true;
-      
-      // 2초 후 자동으로 숨기기
-      setTimeout(() => {
-        showToastMessage.value = false;
-      }, 2000);
-    };
-
-    // 토스트 숨기기
-    const hideToast = () => {
-      showToastMessage.value = false;
-    };
-
-    // 여행 계획 추가/삭제 토글
-    const toggleTripPlan = () => {
-      if (!attraction.value) return;
-
-      const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
-      const existingIndex = tripPlan.attractions.findIndex(item => item.no === attraction.value.no);
-
-      if (existingIndex !== -1) {
-        // 이미 추가된 경우 - 삭제
-        tripPlan.attractions.splice(existingIndex, 1);
-        localStorage.setItem('tripPlan', JSON.stringify(tripPlan));
-        isAddedToPlan.value = false;
-      } else {
-        // 추가되지 않은 경우 - 추가
-        tripPlan.attractions.push(attraction.value);
-        localStorage.setItem('tripPlan', JSON.stringify(tripPlan));
-        isAddedToPlan.value = true;
-      }
-
-      // 토스트 메시지 보여주기
-      showToast();
-    };
-
-    // 여행 계획 추가 상태 확인
-    const checkTripPlanStatus = () => {
-      if (!attraction.value) return;
-
-      const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
-      const exists = tripPlan.attractions.some(item => item.no === attraction.value.no);
-      isAddedToPlan.value = exists;
-    };
-
-    // attraction 값이 변경될 때 여행 계획 상태 확인
-    watch(attraction, (newAttraction) => {
-      if (newAttraction) {
-        checkTripPlanStatus();
-      }
-    });
-
-    // 컴포넌트 마운트 시 데이터 조회
-    onMounted(fetchAttractionDetail);
-
-    return {
-      attraction,
-      nearbyAttractions,
-      loading,
-      error,
-      isAddedToPlan,
-      toastMessage,
-      showToastMessage,
-      sanitizeHTML,
-      toggleTripPlan,
-      hideToast
-    };
+const props = defineProps({
+  no: {
+    type: [Number, String],
+    required: true
   }
-};
+})
+
+const emit = defineEmits(['view-map', 'add-to-plan', 'select-nearby'])
+
+const route = useRoute()
+const attraction = ref(null)
+const nearbyAttractions = ref([])
+const loading = ref(true)
+const error = ref(null)
+const map = ref(null)
+const isAddedToPlan = ref(false)
+const toastMessage = ref('')
+const showToastMessage = ref(false)
+
+// HTML 태그 필터링 (악의적인 스크립트 방지)
+const sanitizeHTML = (html) => {
+  // 실제 프로덕션에서는 DOMPurify 등의 라이브러리 사용 권장
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+}
+
+// 관광지 상세 정보 조회
+const fetchAttractionDetail = async () => {
+  const attractionId = Number(props.no)
+  if (isNaN(attractionId)) {
+    error.value = '잘못된 관광지 ID 입니다.'
+    loading.value = false
+    return
+  }
+
+  try {
+    loading.value = true
+    const { data } = await attractionService.getAttractionDetail(attractionId)
+
+    if (!data) {
+      error.value = '관광지 정보를 찾을 수 없습니다.'
+      return
+    }
+
+    attraction.value = data.attraction
+    nearbyAttractions.value = data.nearbyAttractions || []
+
+    // 지도 초기화 (다음 틱에서 실행)
+    setTimeout(() => {
+      initMap()
+    }, 100)
+  } catch (err) {
+    console.error('관광지 상세 정보 조회 실패:', err)
+    error.value = '관광지 정보를 불러오는데 실패했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 지도 초기화
+const initMap = () => {
+  if (!attraction.value || !attraction.value.latitude || !attraction.value.longitude) return
+
+  // 카카오맵 API가 로드되었는지 확인
+  if (window.kakao && window.kakao.maps) {
+    createMap()
+  } else {
+    // 카카오맵 API 동적 로드
+    const script = document.createElement('script')
+    script.onload = () => {
+      // API 로드 후 지도 생성
+      const callback = () => createMap()
+      window.kakao.maps.load(callback)
+    }
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_API_KEY&autoload=false`
+    document.head.appendChild(script)
+  }
+}
+
+// 지도 생성
+const createMap = () => {
+  const container = document.getElementById('map')
+  if (!container) return
+
+  const options = {
+    center: new window.kakao.maps.LatLng(
+      attraction.value.latitude,
+      attraction.value.longitude
+    ),
+    level: attraction.value.mapLevel || 3
+  }
+
+  map.value = new window.kakao.maps.Map(container, options)
+
+  // 마커 생성
+  const markerPosition = new window.kakao.maps.LatLng(
+    attraction.value.latitude,
+    attraction.value.longitude
+  )
+
+  const marker = new window.kakao.maps.Marker({
+    position: markerPosition
+  })
+
+  // 마커 지도에 표시
+  marker.setMap(map.value)
+
+  // 인포윈도우 생성
+  const iwContent = `<div style="padding:5px;">${attraction.value.title}</div>`
+  const infowindow = new window.kakao.maps.InfoWindow({
+    content: iwContent
+  })
+
+  // 마커에 인포윈도우 표시
+  infowindow.open(map.value, marker)
+}
+
+// 토스트 메시지 생성
+const generateToastMessage = () => {
+  const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}')
+  const attractionNames = tripPlan.attractions.map(attr => attr.title).join(', ')
+  return `등록된 일정 : ${attractionNames || '없음'}`
+}
+
+// 토스트 보여주기
+const showToast = () => {
+  toastMessage.value = generateToastMessage()
+  showToastMessage.value = true
+  
+  // 2초 후 자동으로 숨기기
+  setTimeout(() => {
+    showToastMessage.value = false
+  }, 2000)
+}
+
+// 토스트 숨기기
+const hideToast = () => {
+  showToastMessage.value = false
+}
+
+// 여행 계획 추가/삭제 토글
+const toggleTripPlan = () => {
+  if (!attraction.value) return
+
+  const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}')
+  const existingIndex = tripPlan.attractions.findIndex(item => item.no === attraction.value.no)
+
+  if (existingIndex !== -1) {
+    // 이미 추가된 경우 - 삭제
+    tripPlan.attractions.splice(existingIndex, 1)
+    localStorage.setItem('tripPlan', JSON.stringify(tripPlan))
+    isAddedToPlan.value = false
+  } else {
+    // 추가되지 않은 경우 - 추가
+    tripPlan.attractions.push(attraction.value)
+    localStorage.setItem('tripPlan', JSON.stringify(tripPlan))
+    isAddedToPlan.value = true
+  }
+
+  // 토스트 메시지 보여주기
+  showToast()
+}
+
+// 여행 계획 추가 상태 확인
+const checkTripPlanStatus = () => {
+  if (!attraction.value) return
+
+  const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}')
+  const exists = tripPlan.attractions.some(item => item.no === attraction.value.no)
+  isAddedToPlan.value = exists
+}
+
+// attraction 값이 변경될 때 여행 계획 상태 확인
+watch(attraction, (newAttraction) => {
+  if (newAttraction) {
+    checkTripPlanStatus()
+  }
+})
+
+// 컴포넌트 마운트 시 데이터 조회
+onMounted(fetchAttractionDetail)
 </script>
 
 <style scoped>

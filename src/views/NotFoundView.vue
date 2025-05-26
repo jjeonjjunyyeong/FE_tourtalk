@@ -15,10 +15,8 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'NotFoundView'
-};
+<script setup>
+// 404 페이지는 로직이 없으므로 빈 setup
 </script>
 
 <style scoped>

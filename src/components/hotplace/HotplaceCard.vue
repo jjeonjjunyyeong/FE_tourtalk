@@ -1,4 +1,3 @@
-
 <template>
   <div class="hotplace-card" @click="navigateToDetail">
     <div class="card h-100 shadow-sm hover-effect">
@@ -51,29 +50,22 @@
   </div>
 </template>
 
-<script>
-import { useRouter } from 'vue-router';
+<script setup>
+import { useRouter } from 'vue-router'
+import {defineProps} from 'vue'
 
-export default {
-  name: 'HotplaceCard',
-  props: {
-    hotplace: {
-      type: Object,
-      required: true
-    }
-  },
-  setup(props) {
-    const router = useRouter();
-
-    const navigateToDetail = () => {
-      router.push(`/hotplaces/${props.hotplace.id}`);
-    };
-
-    return {
-      navigateToDetail
-    };
+const props = defineProps({
+  hotplace: {
+    type: Object,
+    required: true
   }
-};
+})
+
+const router = useRouter()
+
+const navigateToDetail = () => {
+  router.push(`/hotplaces/${props.hotplace.id}`)
+}
 </script>
 
 <style scoped>

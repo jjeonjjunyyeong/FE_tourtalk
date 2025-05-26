@@ -64,59 +64,48 @@
   </div>
 </template>
 
-<script>
-import { computed } from 'vue';
-import AttractionCard from './AttractionCard.vue';
+<script setup>
+import { computed, defineProps, defineEmits } from 'vue'
+import AttractionCard from './AttractionCard.vue'
 
-export default {
-  name: 'AttractionList',
-  components: {
-    AttractionCard
+const props = defineProps({
+  attractions: {
+    type: Array,
+    default: () => []
   },
-  props: {
-    attractions: {
-      type: Array,
-      default: () => []
-    },
-    pageInfo: {
-      type: Object,
-      default: null
-    },
-    loading: {
-      type: Boolean,
-      default: false
-    }
+  pageInfo: {
+    type: Object,
+    default: null
   },
-  emits: ['page-change'],
-  setup(props, { emit }) {
-    // 화면에 표시할 페이지 번호 계산
-    const displayedPages = computed(() => {
-      if (!props.pageInfo) return [];
-
-      const { pageNumber, startPage, endPage } = props.pageInfo;
-      let pages = [];
-
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
-      }
-
-      return pages;
-    });
-
-    // 페이지 변경 이벤트 핸들러
-    const onPageChange = (page) => {
-      if (page < 1 || page > props.pageInfo.totalPages) return;
-      if (page === props.pageInfo.pageNumber) return;
-
-      emit('page-change', page);
-    };
-
-    return {
-      displayedPages,
-      onPageChange
-    };
+  loading: {
+    type: Boolean,
+    default: false
   }
-};
+})
+
+const emit = defineEmits(['page-change'])
+
+// 화면에 표시할 페이지 번호 계산
+const displayedPages = computed(() => {
+  if (!props.pageInfo) return []
+
+  const { pageNumber, startPage, endPage } = props.pageInfo
+  let pages = []
+
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i)
+  }
+
+  return pages
+})
+
+// 페이지 변경 이벤트 핸들러
+const onPageChange = (page) => {
+  if (page < 1 || page > props.pageInfo.totalPages) return
+  if (page === props.pageInfo.pageNumber) return
+
+  emit('page-change', page)
+}
 </script>
 
 <style scoped>

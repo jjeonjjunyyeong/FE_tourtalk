@@ -57,65 +57,53 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive, onMounted } from 'vue';
-import hotplaceService from '@/services/hotplace';
+<script setup>
+import { ref, reactive, onMounted, defineEmits } from 'vue'
+import hotplaceService from '@/services/hotplace'
 
-export default {
-  name: 'HotplaceSearch',
-  emits: ['search'],
-  setup(props, { emit }) {
-    // 검색 파라미터
-    const searchParams = reactive({
-      contentTypeId: '',
-      keyword: ''
-    });
+const emit = defineEmits(['search'])
 
-    // 카테고리 데이터
-    const contentTypes = ref([]);
-    const loading = ref(false);
+// 검색 파라미터
+const searchParams = reactive({
+  contentTypeId: '',
+  keyword: ''
+})
 
-    // 카테고리 목록 조회
-    const fetchContentTypes = async () => {
-      try {
-        loading.value = true;
-        const { data } = await hotplaceService.getContentTypes();
-        contentTypes.value = data.contentList || [];
-      } catch (error) {
-        console.error('카테고리 목록 조회 실패:', error);
-        alert('카테고리 정보를 불러오는데 실패했습니다.');
-      } finally {
-        loading.value = false;
-      }
-    };
+// 카테고리 데이터
+const contentTypes = ref([])
+const loading = ref(false)
 
-    // 검색 실행
-    const onSearch = () => {
-      emit('search', { ...searchParams });
-    };
-
-    // 검색 조건 초기화
-    const resetSearch = () => {
-      Object.assign(searchParams, {
-        contentTypeId: '',
-        keyword: ''
-      });
-
-      emit('search', { ...searchParams });
-    };
-
-    // 컴포넌트 마운트 시 카테고리 목록 조회
-    onMounted(fetchContentTypes);
-
-    return {
-      searchParams,
-      contentTypes,
-      loading,
-      onSearch,
-      resetSearch
-    };
+// 카테고리 목록 조회
+const fetchContentTypes = async () => {
+  try {
+    loading.value = true
+    const { data } = await hotplaceService.getContentTypes()
+    contentTypes.value = data.contentList || []
+  } catch (error) {
+    console.error('카테고리 목록 조회 실패:', error)
+    alert('카테고리 정보를 불러오는데 실패했습니다.')
+  } finally {
+    loading.value = false
   }
-};
+}
+
+// 검색 실행
+const onSearch = () => {
+  emit('search', { ...searchParams })
+}
+
+// 검색 조건 초기화
+const resetSearch = () => {
+  Object.assign(searchParams, {
+    contentTypeId: '',
+    keyword: ''
+  })
+
+  emit('search', { ...searchParams })
+}
+
+// 컴포넌트 마운트 시 카테고리 목록 조회
+onMounted(fetchContentTypes)
 </script>
 
 <style scoped>

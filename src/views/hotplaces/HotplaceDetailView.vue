@@ -193,235 +193,218 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import hotplaceService from '@/services/hotplace';
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import hotplaceService from '@/services/hotplace'
 
-export default {
-  name: 'HotplaceDetailView',
-  props: {
-    id: {
-      type: [Number, String],
-      required: true
-    }
-  },
-  setup(props) {
-    const route = useRoute();
-    const router = useRouter();
-    const hotplace = ref(null);
-    const loading = ref(true);
-    const error = ref(null);
-    const deleteLoading = ref(false);
-    const deleteModalRef = ref(null);
-    let deleteModal = null;
-
-    // 핫플레이스 상세 정보 조회
-    const fetchHotplaceDetail = async () => {
-      const hotplaceId = Number(props.id);
-      if (isNaN(hotplaceId)) {
-        error.value = '잘못된 핫플레이스 ID입니다.';
-        loading.value = false;
-        return;
-      }
-
-      try {
-        loading.value = true;
-        const { data } = await hotplaceService.getHotplaceDetail(hotplaceId);
-
-        if (!data) {
-          error.value = '핫플레이스 정보를 찾을 수 없습니다.';
-          return;
-        }
-
-        hotplace.value = data;
-
-        // 지도 초기화 (다음 틱에서 실행)
-        setTimeout(() => {
-          initMap();
-        }, 100);
-      } catch (err) {
-        console.error('핫플레이스 상세 정보 조회 실패:', err);
-
-        if (err.response?.status === 404) {
-          error.value = '존재하지 않는 핫플레이스입니다.';
-        } else {
-          error.value = '핫플레이스 정보를 불러오는데 실패했습니다.';
-        }
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    // 지도 초기화
-    const initMap = () => {
-      if (!hotplace.value || !hotplace.value.latitude || !hotplace.value.longitude) return;
-
-      if (window.kakao && window.kakao.maps) {
-        createMap();
-      } else {
-        const script = document.createElement('script');
-        script.onload = () => {
-          window.kakao.maps.load(() => createMap());
-        };
-        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&autoload=false`;
-        document.head.appendChild(script);
-      }
-    };
-
-    // 지도 생성
-    const createMap = () => {
-      const container = document.getElementById('map');
-      if (!container) return;
-
-      const options = {
-        center: new window.kakao.maps.LatLng(
-          hotplace.value.latitude,
-          hotplace.value.longitude
-        ),
-        level: 3
-      };
-
-      const map = new window.kakao.maps.Map(container, options);
-
-      // 마커 생성
-      const markerPosition = new window.kakao.maps.LatLng(
-        hotplace.value.latitude,
-        hotplace.value.longitude
-      );
-
-      const marker = new window.kakao.maps.Marker({
-        position: markerPosition
-      });
-
-      marker.setMap(map);
-
-      // 인포윈도우 생성
-      const iwContent = `<div style="padding:5px; text-align:center; font-size:12px;"><b>${hotplace.value.title}</b></div>`;
-      const infowindow = new window.kakao.maps.InfoWindow({
-        content: iwContent
-      });
-
-      infowindow.open(map, marker);
-    };
-
-    // 날짜 포맷팅
-    const formatDate = (dateString) => {
-      if (!dateString) return '';
-      return new Date(dateString).toLocaleDateString('ko-KR');
-    };
-
-    // 여행 계획에 추가
-    const addToTripPlan = () => {
-      if (!hotplace.value) return;
-
-      // 기존 여행 계획 불러오기
-      const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}');
-
-      // 핫플레이스를 관광지 형태로 변환
-      const attractionData = {
-        no: `hotplace_${hotplace.value.id}`,
-        title: hotplace.value.title,
-        latitude: hotplace.value.latitude,
-        longitude: hotplace.value.longitude,
-        sido: '핫플레이스',
-        gugun: hotplace.value.contentTypeName,
-        addr: '',
-        contentTypeName: hotplace.value.contentTypeName,
-        firstImage1: hotplace.value.imageUrls?.[0] || '',
-        viewCnt: hotplace.value.viewCount || 0
-      };
-
-      // 중복 확인
-      const exists = tripPlan.attractions.some(item => item.no === attractionData.no);
-
-      if (exists) {
-        alert('이미 여행 계획에 추가된 핫플레이스입니다.');
-        return;
-      }
-
-      // 추가
-      tripPlan.attractions.push(attractionData);
-      localStorage.setItem('tripPlan', JSON.stringify(tripPlan));
-
-      alert('여행 계획에 추가되었습니다!');
-    };
-
-    // 위치 공유
-    const shareLocation = () => {
-      if (!hotplace.value) return;
-
-      const shareUrl = `https://map.kakao.com/link/map/${hotplace.value.title},${hotplace.value.latitude},${hotplace.value.longitude}`;
-
-      if (navigator.share) {
-        navigator.share({
-          title: hotplace.value.title,
-          text: `${hotplace.value.title} 위치를 공유합니다.`,
-          url: shareUrl
-        });
-      } else {
-        // 클립보드에 복사
-        navigator.clipboard.writeText(shareUrl).then(() => {
-          alert('위치 링크가 클립보드에 복사되었습니다!');
-        }).catch(() => {
-          alert(`위치 링크: ${shareUrl}`);
-        });
-      }
-    };
-
-    // 삭제 모달 표시
-    const showDeleteModal = () => {
-      deleteModal.show();
-    };
-
-    // 핫플레이스 삭제
-    const deleteHotplace = async () => {
-      try {
-        deleteLoading.value = true;
-
-        await hotplaceService.deleteHotplace(hotplace.value.id);
-
-        deleteModal.hide();
-        alert('핫플레이스가 삭제되었습니다.');
-        router.push('/hotplaces');
-
-      } catch (error) {
-        console.error('핫플레이스 삭제 실패:', error);
-
-        if (error.response?.status === 403) {
-          alert('삭제 권한이 없습니다.');
-        } else {
-          alert('삭제 중 오류가 발생했습니다.');
-        }
-      } finally {
-        deleteLoading.value = false;
-      }
-    };
-
-    // 컴포넌트 마운트
-    onMounted(async () => {
-      // Bootstrap 모달 초기화
-      const { Modal } = await import('bootstrap');
-      deleteModal = new Modal(deleteModalRef.value);
-
-      // 데이터 로드
-      fetchHotplaceDetail();
-    });
-
-    return {
-      hotplace,
-      loading,
-      error,
-      deleteLoading,
-      deleteModalRef,
-      formatDate,
-      addToTripPlan,
-      shareLocation,
-      showDeleteModal,
-      deleteHotplace
-    };
+const props = defineProps({
+  id: {
+    type: [Number, String],
+    required: true
   }
-};
+})
+
+const route = useRoute()
+const router = useRouter()
+const hotplace = ref(null)
+const loading = ref(true)
+const error = ref(null)
+const deleteLoading = ref(false)
+const deleteModalRef = ref(null)
+let deleteModal = null
+
+// 핫플레이스 상세 정보 조회
+const fetchHotplaceDetail = async () => {
+  const hotplaceId = Number(props.id)
+  if (isNaN(hotplaceId)) {
+    error.value = '잘못된 핫플레이스 ID입니다.'
+    loading.value = false
+    return
+  }
+
+  try {
+    loading.value = true
+    const { data } = await hotplaceService.getHotplaceDetail(hotplaceId)
+
+    if (!data) {
+      error.value = '핫플레이스 정보를 찾을 수 없습니다.'
+      return
+    }
+
+    hotplace.value = data
+
+    // 지도 초기화 (다음 틱에서 실행)
+    setTimeout(() => {
+      initMap()
+    }, 100)
+  } catch (err) {
+    console.error('핫플레이스 상세 정보 조회 실패:', err)
+
+    if (err.response?.status === 404) {
+      error.value = '존재하지 않는 핫플레이스입니다.'
+    } else {
+      error.value = '핫플레이스 정보를 불러오는데 실패했습니다.'
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 지도 초기화
+const initMap = () => {
+  if (!hotplace.value || !hotplace.value.latitude || !hotplace.value.longitude) return
+
+  if (window.kakao && window.kakao.maps) {
+    createMap()
+  } else {
+    const script = document.createElement('script')
+    script.onload = () => {
+      window.kakao.maps.load(() => createMap())
+    }
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&autoload=false`
+    document.head.appendChild(script)
+  }
+}
+
+// 지도 생성
+const createMap = () => {
+  const container = document.getElementById('map')
+  if (!container) return
+
+  const options = {
+    center: new window.kakao.maps.LatLng(
+      hotplace.value.latitude,
+      hotplace.value.longitude
+    ),
+    level: 3
+  }
+
+  const map = new window.kakao.maps.Map(container, options)
+
+  // 마커 생성
+  const markerPosition = new window.kakao.maps.LatLng(
+    hotplace.value.latitude,
+    hotplace.value.longitude
+  )
+
+  const marker = new window.kakao.maps.Marker({
+    position: markerPosition
+  })
+
+  marker.setMap(map)
+
+  // 인포윈도우 생성
+  const iwContent = `<div style="padding:5px; text-align:center; font-size:12px;"><b>${hotplace.value.title}</b></div>`
+  const infowindow = new window.kakao.maps.InfoWindow({
+    content: iwContent
+  })
+
+  infowindow.open(map, marker)
+}
+
+// 날짜 포맷팅
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('ko-KR')
+}
+
+// 여행 계획에 추가
+const addToTripPlan = () => {
+  if (!hotplace.value) return
+
+  // 기존 여행 계획 불러오기
+  const tripPlan = JSON.parse(localStorage.getItem('tripPlan') || '{"attractions":[]}')
+
+  // 핫플레이스를 관광지 형태로 변환
+  const attractionData = {
+    no: `hotplace_${hotplace.value.id}`,
+    title: hotplace.value.title,
+    latitude: hotplace.value.latitude,
+    longitude: hotplace.value.longitude,
+    sido: '핫플레이스',
+    gugun: hotplace.value.contentTypeName,
+    addr: '',
+    contentTypeName: hotplace.value.contentTypeName,
+    firstImage1: hotplace.value.imageUrls?.[0] || '',
+    viewCnt: hotplace.value.viewCount || 0
+  }
+
+  // 중복 확인
+  const exists = tripPlan.attractions.some(item => item.no === attractionData.no)
+
+  if (exists) {
+    alert('이미 여행 계획에 추가된 핫플레이스입니다.')
+    return
+  }
+
+  // 추가
+  tripPlan.attractions.push(attractionData)
+  localStorage.setItem('tripPlan', JSON.stringify(tripPlan))
+
+  alert('여행 계획에 추가되었습니다!')
+}
+
+// 위치 공유
+const shareLocation = () => {
+  if (!hotplace.value) return
+
+  const shareUrl = `https://map.kakao.com/link/map/${hotplace.value.title},${hotplace.value.latitude},${hotplace.value.longitude}`
+
+  if (navigator.share) {
+    navigator.share({
+      title: hotplace.value.title,
+      text: `${hotplace.value.title} 위치를 공유합니다.`,
+      url: shareUrl
+    })
+  } else {
+    // 클립보드에 복사
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert('위치 링크가 클립보드에 복사되었습니다!')
+    }).catch(() => {
+      alert(`위치 링크: ${shareUrl}`)
+    })
+  }
+}
+
+// 삭제 모달 표시
+const showDeleteModal = () => {
+  deleteModal.show()
+}
+
+// 핫플레이스 삭제
+const deleteHotplace = async () => {
+  try {
+    deleteLoading.value = true
+
+    await hotplaceService.deleteHotplace(hotplace.value.id)
+
+    deleteModal.hide()
+    alert('핫플레이스가 삭제되었습니다.')
+    router.push('/hotplaces')
+
+  } catch (error) {
+    console.error('핫플레이스 삭제 실패:', error)
+
+    if (error.response?.status === 403) {
+      alert('삭제 권한이 없습니다.')
+    } else {
+      alert('삭제 중 오류가 발생했습니다.')
+    }
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
+// 컴포넌트 마운트
+onMounted(async () => {
+  // Bootstrap 모달 초기화
+  const { Modal } = await import('bootstrap')
+  deleteModal = new Modal(deleteModalRef.value)
+
+  // 데이터 로드
+  fetchHotplaceDetail()
+})
 </script>
 
 <style scoped>

@@ -154,112 +154,97 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive, watch, onMounted } from 'vue';
-import attractionService from '@/services/attraction';
+<script setup>
+import { ref, reactive, watch, onMounted, defineEmits } from 'vue'
+import attractionService from '@/services/attraction'
 
-export default {
-  name: 'AttractionSearch',
-  emits: ['search'],
-  setup(props, { emit }) {
-    // 검색 파라미터
-    const searchParams = reactive({
-      contentTypeId: '',
-      sidoCode: '',
-      gugunCode: '',
-      keyword: '',
-      onlyWithImage: false,
-      orderBy: '',
-      orderDirection: 'DESC',
-      pageNumber: 1,
-      pageSize: 12
-    });
+const emit = defineEmits(['search'])
 
-    // 카테고리 데이터
-    const contentTypes = ref([]);
-    const sidos = ref([]);
-    const guguns = ref([]);
-    const loading = ref(false);
+// 검색 파라미터
+const searchParams = reactive({
+  contentTypeId: '',
+  sidoCode: '',
+  gugunCode: '',
+  keyword: '',
+  onlyWithImage: false,
+  orderBy: '',
+  orderDirection: 'DESC',
+  pageNumber: 1,
+  pageSize: 12
+})
 
-    // 폼 데이터 조회
-    const fetchFormData = async () => {
-      try {
-        loading.value = true;
-        const { data } = await attractionService.getFormData();
-        contentTypes.value = data.contentList || [];
-        sidos.value = data.sidoList || [];
-      } catch (error) {
-        console.error('폼 데이터 조회 실패:', error);
-        alert('카테고리 정보를 불러오는데 실패했습니다.');
-      } finally {
-        loading.value = false;
-      }
-    };
+// 카테고리 데이터
+const contentTypes = ref([])
+const sidos = ref([])
+const guguns = ref([])
+const loading = ref(false)
 
-    // 시도 변경시 구군 목록 조회
-    const onSidoChange = async () => {
-      searchParams.gugunCode = ''; // 구군 선택 초기화
-
-      if (!searchParams.sidoCode) {
-        guguns.value = [];
-        return;
-      }
-
-      try {
-        loading.value = true;
-        const { data } = await attractionService.getGugunList(searchParams.sidoCode);
-        guguns.value = data || [];
-      } catch (error) {
-        console.error('구군 목록 조회 실패:', error);
-        alert('시군구 정보를 불러오는데 실패했습니다.');
-        guguns.value = [];
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    // 검색 실행
-    const onSearch = () => {
-      // 페이지 번호 초기화
-      searchParams.pageNumber = 1;
-      emit('search', { ...searchParams });
-    };
-
-    // 검색 조건 초기화
-    const resetSearch = () => {
-      Object.assign(searchParams, {
-        contentTypeId: '',
-        sidoCode: '',
-        gugunCode: '',
-        keyword: '',
-        onlyWithImage: false,
-        orderBy: '',
-        orderDirection: 'DESC',
-        pageNumber: 1
-      });
-
-      guguns.value = [];
-      emit('search', { ...searchParams });
-    };
-
-    // 시도 변경 감지
-    watch(() => searchParams.sidoCode, onSidoChange);
-
-    // 컴포넌트 마운트 시 폼 데이터 조회
-    onMounted(fetchFormData);
-
-    return {
-      searchParams,
-      contentTypes,
-      sidos,
-      guguns,
-      loading,
-      onSidoChange,
-      onSearch,
-      resetSearch
-    };
+// 폼 데이터 조회
+const fetchFormData = async () => {
+  try {
+    loading.value = true
+    const { data } = await attractionService.getFormData()
+    contentTypes.value = data.contentList || []
+    sidos.value = data.sidoList || []
+  } catch (error) {
+    console.error('폼 데이터 조회 실패:', error)
+    alert('카테고리 정보를 불러오는데 실패했습니다.')
+  } finally {
+    loading.value = false
   }
-};
+}
+
+// 시도 변경시 구군 목록 조회
+const onSidoChange = async () => {
+  searchParams.gugunCode = '' // 구군 선택 초기화
+
+  if (!searchParams.sidoCode) {
+    guguns.value = []
+    return
+  }
+
+  try {
+    loading.value = true
+    const { data } = await attractionService.getGugunList(searchParams.sidoCode)
+    guguns.value = data || []
+  } catch (error) {
+    console.error('구군 목록 조회 실패:', error)
+    alert('시군구 정보를 불러오는데 실패했습니다.')
+    guguns.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 검색 실행
+const onSearch = () => {
+  // 페이지 번호 초기화
+  searchParams.pageNumber = 1
+  emit('search', { ...searchParams })
+}
+
+// 검색 조건 초기화
+const resetSearch = () => {
+  Object.assign(searchParams, {
+    contentTypeId: '',
+    sidoCode: '',
+    gugunCode: '',
+    keyword: '',
+    onlyWithImage: false,
+    orderBy: '',
+    orderDirection: 'DESC',
+    pageNumber: 1
+  })
+
+  guguns.value = []
+  emit('search', { ...searchParams })
+}
+
+// 시도 변경 감지
+watch(() => searchParams.sidoCode, onSidoChange)
+
+// 컴포넌트 마운트 시 폼 데이터 조회
+onMounted(fetchFormData)
 </script>
 
 <style scoped>
