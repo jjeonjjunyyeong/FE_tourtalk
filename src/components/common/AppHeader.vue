@@ -76,7 +76,7 @@
                     <router-link class="dropdown-item" to="/admin/users">회원 관리</router-link>
                   </li>
                   <li v-if="isAdmin">
-                    <router-link class="dropdown-item" to="/admin/posts">게시글 관리</router-link>
+                    <router-link class="dropdown-item" to="/admin/boards">게시글 관리</router-link>
                   </li>
 
                   <li><a class="dropdown-item" href="#" @click.prevent="onLogout">로그아웃</a></li>

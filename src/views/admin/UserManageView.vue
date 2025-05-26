@@ -17,9 +17,9 @@
       </select>
       <select v-model="search.status" class="form-select">
         <option value="">전체 상태</option>
-        <option value="ACTIVE">정상</option>
-        <option value="SUSPENDED">정지</option>
-        <option value="PENDING">대기</option>
+        <option value="ACTIVE">정상 활동</option>
+        <option value="SUSPENDED">일시 정지</option>
+        <option value="PENDING">승인 대기</option>
         <option value="DELETED">탈퇴</option>
       </select>
       <button @click="fetchMembers" class="btn btn-primary">검색</button>
@@ -114,11 +114,11 @@ const getRoleLabel = (role) => {
 const getStatusLabel = (status) => {
   switch (status) {
     case 'ACTIVE':
-      return '정상'
+      return '정상 활동'
     case 'SUSPENDED':
-      return '정지'
+      return '일시 정지'
     case 'PENDING':
-      return '대기'
+      return '승인 대기'
     case 'DELETED':
       return '탈퇴'
     default:

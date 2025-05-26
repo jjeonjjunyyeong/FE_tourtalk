@@ -118,6 +118,12 @@ const routes = [
     name: 'BookingView',
     component: () => import('@/views/products/ProductBookingReserveView.vue'),
   },
+ {
+    path: '/admin/boards',
+    name: 'BoardsManage',
+    component: () => import('@/views/admin/BoardsManageView.vue'),
+    meta: { requiresAuth: true, role: 'ADMIN'},
+ },
 ]
 
 const router = createRouter({

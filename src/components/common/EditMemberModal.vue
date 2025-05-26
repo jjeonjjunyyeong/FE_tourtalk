@@ -41,16 +41,26 @@
             <div class="col-md-6">
               <label class="form-label">상태</label>
               <select v-model="form.status" class="form-select">
-                <option value="ACTIVE">정상</option>
-                <option value="SUSPENDED">정지</option>
-                <option value="PENDING">대기</option>
+                <option value="ACTIVE">정상 활동</option>
+                <option value="SUSPENDED">일시 정지</option>
+                <option value="PENDING">승인 대기</option>
                 <option value="DELETED">탈퇴</option>
               </select>
             </div>
 
             <div v-if="form.role === 'CURATOR'" class="col-12">
+              <label class="form-label">자격증 이미지</label>
+              <div v-if="form.curatorImg" class="mb-3">
+                <img
+                  :src="`${apiBase}/${form.curatorImg}`"
+                  alt="자격증 이미지"
+                  class="img-fluid rounded border"
+                  style="max-width: 300px"
+                />
+              </div>
+              <div v-else class="text-muted mb-3">이미지 없음</div>
               <label class="form-label">자격증 번호</label>
-              <input type="text" class="form-control" v-model="form.curatorNo" />
+              <input type="text" class="form-control mb-3" v-model="form.curatorNo" />
             </div>
           </div>
         </div>
@@ -68,6 +78,7 @@
 import { ref, onMounted } from 'vue'
 import adminMemberService from '@/services/admin'
 
+const apiBase = import.meta.env.VITE_API_BASE_URL
 const props = defineProps({ mno: Number })
 const emit = defineEmits(['close'])
 
@@ -80,12 +91,17 @@ const form = ref({
   status: '',
   role: '',
   curatorNo: '',
+  curatorImg: '',
 })
 
 const fetchDetail = async () => {
   try {
     const res = await adminMemberService.getMemberDetail(props.mno)
     const m = res.data
+
+    console.log('🔍 회원 정보:', m) // 응답 전체 확인
+    console.log('📄 자격증 이미지 경로:', m.curatorImg) // 이미지 경로 확인
+
     form.value = {
       id: m.id,
       nickname: m.nickname,
@@ -95,6 +111,7 @@ const fetchDetail = async () => {
       status: m.status,
       role: m.role,
       curatorNo: m.curatorNo || '',
+      curatorImg: m.curatorImg || '',
     }
   } catch (err) {
     alert('회원 정보를 불러오는 데 실패했습니다.')
