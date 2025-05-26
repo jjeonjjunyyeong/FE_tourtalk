@@ -302,7 +302,7 @@ const initMap = async () => {
         await loadAddress()
       })
     }
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_API_KEY}&libraries=services&autoload=false`
     document.head.appendChild(script)
   }
 }

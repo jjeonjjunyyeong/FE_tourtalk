@@ -1,17 +1,19 @@
 <template>
   <div class="attraction-view">
-    <h2 class="mb-4">여행지 검색</h2>
+    <div class="container-custom">
+       <h2 class="mb-4">여행지 검색</h2>
 
-    <!-- 검색 컴포넌트 -->
-    <attraction-search @search="onSearch" />
+      <!-- 검색 컴포넌트 -->
+      <attraction-search @search="onSearch" />
 
-    <!-- 검색 결과 -->
-    <attraction-list
-      :attractions="attractions"
-      :pageInfo="pageInfo"
-      :loading="loading"
-      @page-change="onPageChange"
-    />
+      <!-- 검색 결과 -->
+      <attraction-list
+        :attractions="attractions"
+        :pageInfo="pageInfo"
+        :loading="loading"
+        @page-change="onPageChange"
+      />
+    </div>
   </div>
 </template>
 
@@ -118,5 +120,28 @@ searchAttractions()
 <style scoped>
 .attraction-view {
   padding: 1rem 0;
+}
+
+.container-custom {
+  width: 80%;
+  max-width: 80%;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* 모바일 반응형 - 작은 화면에서는 90%로 조정 */
+@media (max-width: 768px) {
+  .container-custom {
+    width: 90%;
+    max-width: 90%;
+  }
+}
+
+/* 아주 작은 화면에서는 95%로 조정 */
+@media (max-width: 480px) {
+  .container-custom {
+    width: 95%;
+    max-width: 95%;
+  }
 }
 </style>
