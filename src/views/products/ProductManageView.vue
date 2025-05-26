@@ -18,11 +18,11 @@
     </div>
 
     <div v-else class="row g-4">
-      <div v-for="product in products" :key="product.productId" class="col-md-6">
+      <div v-for="product in products" :key="product.productId" class="col-md-4">
         <div class="card shadow-sm h-100">
           <img
             v-if="product.thumbnailImg"
-            :src="`${tempBase}/${product.thumbnailImg}`"
+            :src="`${apiBase}/${product.thumbnailImg}`"
             class="card-img-top"
             alt="썸네일"
             style="height: 200px; object-fit: cover"
@@ -45,7 +45,7 @@
                 class="btn btn-outline-danger btn-sm"
                 @click="deleteProduct(product.productId)"
               >
-                삭제
+                취소
               </button>
             </div>
           </div>
@@ -61,9 +61,7 @@ import productService from '@/services/product'
 
 const loading = ref(false)
 const products = ref([])
-// const apiBase = import.meta.env.VITE_API_BASE_URL
-// .env 파일 추가 전까지 사용, env 추가 시 위에 주석 해제
-const tempBase = 'http://localhost:8080'
+const apiBase = import.meta.env.VITE_API_BASE_URL
 
 // 상품 상태 라벨
 const statusLabel = (status) => {
@@ -101,12 +99,12 @@ const fetchProducts = async () => {
 
 // 상품 삭제
 const deleteProduct = async (productId) => {
-  if (!confirm('정말 삭제하시겠습니까?')) return
+  if (!confirm('정말 취소하시겠습니까?')) return
   try {
-    await productService.deleteProduct(productId)
-    products.value = products.value.filter((p) => p.productId !== productId)
+    await productService.softDeleteProduct(productId)
+    await fetchProducts() // 목록 전체를 다시 가져와서 갱신
   } catch (err) {
-    console.error('상품 삭제 실패:', err)
+    console.error('상품 취소 실패:', err)
   }
 }
 

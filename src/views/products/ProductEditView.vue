@@ -173,8 +173,17 @@ const fetchProduct = async () => {
   try {
     const res = await productService.getProductById(productId)
     form.value = { ...res.data }
+    // 이미지 미리보기 설정
     previewImage.value = import.meta.env.VITE_API_BASE_URL + '/' + res.data.thumbnailImg
+
+    // 시간대별 예약 현황
     bookingsPerTimeSlot.value = res.data.bookingsPerTimeSlot || {}
+
+    // 관광지명 조회
+    if (form.value.locationNo) {
+      const locRes = await productService.getLocationById(form.value.locationNo)
+      form.value.locationName = locRes.data.name || '(이름 없음)'
+    }
   } catch (err) {
     console.error('상품 상세 조회 실패:', err)
     alert('상품 정보를 불러오는 데 실패했습니다.')

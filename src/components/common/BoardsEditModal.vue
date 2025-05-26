@@ -58,8 +58,12 @@ const fetchDetail = async () => {
 }
 
 const save = async () => {
-  await boardService.updateBoard(props.postId, { ...form.value })
-  emit('success')
+  try {
+    await boardService.updateBoard(props.postId, { ...form.value })
+    emit('success')
+  } catch (err) {
+    alert('수정에 실패했습니다.')
+  }
 }
 
 onMounted(fetchDetail)

@@ -99,9 +99,6 @@ const fetchDetail = async () => {
     const res = await adminMemberService.getMemberDetail(props.mno)
     const m = res.data
 
-    console.log('🔍 회원 정보:', m) // 응답 전체 확인
-    console.log('📄 자격증 이미지 경로:', m.curatorImg) // 이미지 경로 확인
-
     form.value = {
       id: m.id,
       nickname: m.nickname,

@@ -23,8 +23,13 @@ export default {
   },
   // 게시글 상태 변경
   updateBoard(postId, updateRequest) {
-    return apiClient.patch(`/admin/boards/${postId}`, updateRequest)
-},
+    const plainObject = {
+      title: updateRequest.title,
+      category: updateRequest.category,
+      status: updateRequest.status,
+    }
+    return apiClient.put(`/admin/boards/${postId}`, plainObject)
+  },
   // 게시글 상세 정보 조회
   getBoardDetail(postId) {
     return apiClient.get(`/admin/boards/${postId}`)

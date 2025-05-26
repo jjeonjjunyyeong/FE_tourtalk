@@ -30,7 +30,7 @@
         <p class="mt-2">추천 여행지를 불러오는 중입니다...</p>
       </div>
 
-      <div v-else class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div v-else class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
         <div v-for="attraction in themeAttractions" :key="attraction.no" class="col">
           <attraction-card :attraction="attraction" />
         </div>
@@ -60,7 +60,7 @@
         <p class="mt-2">지역별 여행지를 불러오는 중입니다...</p>
       </div>
 
-      <div v-else class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div v-else class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
         <div v-for="attraction in regionAttractions" :key="attraction.no" class="col">
           <attraction-card :attraction="attraction" />
         </div>
@@ -116,7 +116,7 @@ const fetchThemeAttractions = async () => {
 
   try {
     themeLoading.value = true
-    const { data } = await attractionService.getRandomAttractionsByTheme(selectedTheme.value, 3)
+    const { data } = await attractionService.getRandomAttractionsByTheme(selectedTheme.value, 4)
     themeAttractions.value = data || []
   } catch (error) {
     console.error('테마별 여행지 조회 실패:', error)
@@ -132,7 +132,7 @@ const fetchRegionAttractions = async () => {
 
   try {
     regionLoading.value = true
-    const { data } = await attractionService.getRandomAttractionsByRegion(selectedRegion.value, 3)
+    const { data } = await attractionService.getRandomAttractionsByRegion(selectedRegion.value, 4)
     regionAttractions.value = data || []
   } catch (error) {
     console.error('지역별 여행지 조회 실패:', error)

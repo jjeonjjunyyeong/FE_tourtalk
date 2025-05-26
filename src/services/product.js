@@ -7,13 +7,13 @@ export default {
   },
 
   // 상품 수정
-  modifyProduct(productId, productData) {
-    return apiClient.put('/tourProduct/${productId}', productData)
+  updateProduct(productId, productData) {
+    return apiClient.put(`/tourProduct/${productId}`, productData)
   },
 
   // 상품 삭제
   softDeleteProduct(productId) {
-    return apiClient.delete(`/tourProduct/${productId}`)
+    return apiClient.delete(`/tourProduct/${productId}/deleted`)
   },
 
   // 큐레이터의 상품 조회
@@ -28,5 +28,9 @@ export default {
   // 예약 페이지 진입 시 상품 목록(모집 중인) 조회
   searchAvailableProducts(params) {
     return apiClient.get(`/tourProduct/available`, { params })
+  },
+  // 관광지 이름 가져오기
+  getLocationById(locationNo) {
+    return apiClient.get(`/tourProduct/locations/${locationNo}`)
   },
 }
