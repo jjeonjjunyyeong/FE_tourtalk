@@ -95,67 +95,67 @@
           <div class="card-body">
             <h5 class="mb-3">여행 경로</h5>
 
-            <!-- 경로 계산 로딩 상태 -->
-            <div v-if="routeLoading" class="route-loading-container">
-              <div class="text-center py-5">
-                <div class="spinner-border text-primary mb-3" role="status">
-                  <span class="visually-hidden">경로 계산 중...</span>
-                </div>
-                <h5>경로를 계산하는 중입니다...</h5>
-                <p class="text-muted">잠시만 기다려주세요.</p>
-              </div>
-            </div>
-
-            <!-- 경로 계산 실패 상태 -->
-            <div v-else-if="routeError" class="route-error-container">
-              <div class="text-center py-5">
-                <i class="bi bi-exclamation-triangle display-4 text-warning mb-3"></i>
-                <h5>경로를 찾을 수 없습니다</h5>
-                <p class="text-muted mb-3">{{ routeErrorMessage }}</p>
-                <div class="d-flex gap-2 justify-content-center">
-                  <button class="btn btn-primary" @click="retryRouteCalculation">
-                    <i class="bi bi-arrow-clockwise me-1"></i>
-                    다시 시도
-                  </button>
-                  <button class="btn btn-outline-secondary" @click="showBasicMap">
-                    <i class="bi bi-map me-1"></i>
-                    기본 지도 보기
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 정상 지도 표시 -->
-            <div v-else>
+            <!-- 지도 컨테이너 (항상 표시) -->
+            <div class="map-container">
               <div id="map" style="width: 90%; height: 500px;"></div>
 
-              <div v-if="selectedAttractions.length > 1 && routeInfo" class="route-info mt-3">
-                <div class="alert alert-info">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>총 이동 거리:</strong> {{ formatDistance(routeInfo.totalDistance) }}
-                      <span class="mx-2">|</span>
-                      <strong>예상 소요 시간:</strong> {{ formatDuration(routeInfo.totalTime) }}
-                      <span v-if="routeInfo.tollFare > 0" class="mx-2">|</span>
-                      <span v-if="routeInfo.tollFare > 0">
-                        <strong>통행료:</strong> {{ formatCurrency(routeInfo.tollFare) }}
-                      </span>
-                    </div>
-
-                    <a :href="getNaviUrl()" target="_blank" class="btn btn-sm btn-primary">
-                      <i class="bi bi-signpost-2 me-1"></i>
-                      길찾기
-                    </a>
+              <!-- 로딩 오버레이 -->
+              <div v-show="routeLoading" class="map-overlay">
+                <div class="overlay-content">
+                  <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">경로 계산 중...</span>
                   </div>
+                  <h5>경로를 계산하는 중입니다...</h5>
+                  <p class="text-muted">잠시만 기다려주세요.</p>
                 </div>
               </div>
 
-              <div v-else-if="selectedAttractions.length === 1" class="route-info mt-3">
-                <div class="alert alert-warning">
-                  <div class="d-flex align-items-center">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <span>경로를 계산하려면 2개 이상의 관광지를 선택하세요.</span>
+              <!-- 에러 오버레이 -->
+              <div v-show="routeError" class="map-overlay map-overlay-error">
+                <div class="overlay-content">
+                  <i class="bi bi-exclamation-triangle display-4 text-warning mb-3"></i>
+                  <h5>경로를 찾을 수 없습니다</h5>
+                  <p class="text-muted mb-3">{{ routeErrorMessage }}</p>
+                  <div class="d-flex gap-2 justify-content-center">
+                    <button class="btn btn-primary" @click="retryRouteCalculation">
+                      <i class="bi bi-arrow-clockwise me-1"></i>
+                      다시 시도
+                    </button>
+                    <button class="btn btn-outline-secondary" @click="showBasicMap">
+                      <i class="bi bi-map me-1"></i>
+                      기본 지도 보기
+                    </button>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="selectedAttractions.length > 1 && routeInfo" class="route-info mt-3">
+              <div class="alert alert-info">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>총 이동 거리:</strong> {{ formatDistance(routeInfo.totalDistance) }}
+                    <span class="mx-2">|</span>
+                    <strong>예상 소요 시간:</strong> {{ formatDuration(routeInfo.totalTime) }}
+                    <span v-if="routeInfo.tollFare > 0" class="mx-2">|</span>
+                    <span v-if="routeInfo.tollFare > 0">
+                      <strong>통행료:</strong> {{ formatCurrency(routeInfo.tollFare) }}
+                    </span>
+                  </div>
+
+                  <a :href="getNaviUrl()" target="_blank" class="btn btn-sm btn-primary">
+                    <i class="bi bi-signpost-2 me-1"></i>
+                    길찾기
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="selectedAttractions.length === 1" class="route-info mt-3">
+              <div class="alert alert-warning">
+                <div class="d-flex align-items-center">
+                  <i class="bi bi-info-circle me-2"></i>
+                  <span>경로를 계산하려면 2개 이상의 관광지를 선택하세요.</span>
                 </div>
               </div>
             </div>
@@ -258,6 +258,76 @@ const tripPlan = reactive({
   description: '',
   attractions: []
 })
+
+// 거리 계산 함수 (Haversine 공식)
+const calculateDistance = (coord1, coord2) => {
+  const R = 6371e3 // 지구 반지름 (미터)
+  const lat1Rad = coord1.latitude * Math.PI / 180
+  const lat2Rad = coord2.latitude * Math.PI / 180
+  const deltaLatRad = (coord2.latitude - coord1.latitude) * Math.PI / 180
+  const deltaLngRad = (coord2.longitude - coord1.longitude) * Math.PI / 180
+
+  const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+           Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+           Math.sin(deltaLngRad / 2) * Math.sin(deltaLngRad / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+  return R * c // 미터 단위 거리
+}
+
+// 중복 좌표 제거 함수 (10m 이내)
+const removeDuplicateCoordinates = (coordinates) => {
+  if (!coordinates || coordinates.length <= 1) return coordinates
+
+  const filtered = [coordinates[0]] // 첫 번째 좌표는 항상 포함
+
+  for (let i = 1; i < coordinates.length; i++) {
+    const current = coordinates[i]
+    let isDuplicate = false
+
+    // 이미 필터된 좌표들과 비교
+    for (let j = 0; j < filtered.length; j++) {
+      const distance = calculateDistance(current, filtered[j])
+      if (distance < 10) { // 10m 이내면 중복으로 간주
+        isDuplicate = true
+        break
+      }
+    }
+
+    if (!isDuplicate) {
+      filtered.push(current)
+    }
+  }
+
+  console.log(`좌표 중복 제거: ${coordinates.length} -> ${filtered.length}`)
+  return filtered
+}
+
+// 성능 최적화를 위한 좌표 간소화 함수
+const optimizeCoordinates = (coordinates, maxPoints = 1000) => {
+  if (!coordinates || coordinates.length <= maxPoints) {
+    return coordinates
+  }
+
+  // Douglas-Peucker 알고리즘의 간단한 버전
+  const step = Math.ceil(coordinates.length / maxPoints)
+  const optimized = []
+
+  // 첫 번째와 마지막 좌표는 반드시 포함
+  optimized.push(coordinates[0])
+
+  for (let i = step; i < coordinates.length - 1; i += step) {
+    optimized.push(coordinates[i])
+  }
+
+  // 마지막 좌표 포함
+  if (coordinates.length > 1) {
+    optimized.push(coordinates[coordinates.length - 1])
+  }
+
+  console.log(`좌표 최적화: ${coordinates.length} -> ${optimized.length}`)
+  return optimized
+}
 
 // 로컬 스토리지에서 선택된 관광지 불러오기
 const loadSelectedAttractions = () => {
@@ -466,65 +536,57 @@ const showBasicMap = () => {
 
 // 지도에 실제 경로 표시
 const displayRouteOnMap = () => {
-  console.log('지도에 경로 표시 중...');
+  console.log('지도에 경로 표시 중...')
 
   // 맵 초기화 확인
   if (!map.value) {
-    console.error('맵이 초기화되지 않았습니다.');
-    return;
+    console.error('맵이 초기화되지 않았습니다.')
+    return
   }
 
-  // 맵 컨테이너 확인
-  const container = document.getElementById('map');
-  if (!container) {
-    console.error('맵 컨테이너를 찾을 수 없습니다.');
-    return;
-  }
-  console.log('맵 컨테이너:', container, '스타일:', container.style);
-
-  // 마커 표시
-  displayMarkers();
+  // 마커 표시 (출발지/목적지/경유지만)
+  displayMarkers()
 
   // 경로 좌표 유효성 확인
-  if (!routeCoordinates.value || routeCoordinates.value.length < 901) {
-    console.warn('경로 좌표가 충분하지 않거나 존재하지 않습니다. 최소 901개의 좌표가 필요합니다.');
-    return;
+  if (!routeCoordinates.value || routeCoordinates.value.length < 2) {
+    console.warn('경로 좌표가 충분하지 않습니다.')
+    return
   }
 
   // 기존 폴리라인 제거
   if (polyline.value) {
-    polyline.value.setMap(null);
-    polyline.value = null;
+    polyline.value.setMap(null)
+    polyline.value = null
   }
 
-  // 0, 100, 200, ..., 900번 인덱스 선택
-  const selectedIndices = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900];
-  const routePath = selectedIndices
-    .map(index => {
-      const coord = routeCoordinates.value[index];
-      if (!coord || coord.latitude == null || coord.longitude == null) {
-        console.warn(`인덱스 ${index}의 좌표가 유효하지 않습니다:`, coord);
-        return null;
-      }
-      const lat = parseFloat(coord.latitude);
-      const lng = parseFloat(coord.longitude);
-      if (isNaN(lat) || isNaN(lng)) {
-        console.warn(`인덱스 ${index}의 좌표 값이 유효하지 않습니다:`, coord);
-        return null;
-      }
-      return new window.kakao.maps.LatLng(lat, lng);
-    })
-    .filter(coord => coord !== null);
+  // 좌표 전처리: 중복 제거 및 성능 최적화
+  let processedCoordinates = removeDuplicateCoordinates(routeCoordinates.value)
+  processedCoordinates = optimizeCoordinates(processedCoordinates, 1000)
 
-  console.log('폴리라인에 사용할 경로 좌표:', routePath);
+  // 카카오맵 좌표 객체로 변환
+  const routePath = processedCoordinates
+    .map(coord => {
+      if (!coord || coord.latitude == null || coord.longitude == null) {
+        return null
+      }
+      const lat = parseFloat(coord.latitude)
+      const lng = parseFloat(coord.longitude)
+      if (isNaN(lat) || isNaN(lng)) {
+        return null
+      }
+      return new window.kakao.maps.LatLng(lat, lng)
+    })
+    .filter(coord => coord !== null)
+
+  console.log('폴리라인에 사용할 경로 좌표:', routePath.length, '개')
 
   // 유효한 좌표가 있는지 확인
   if (routePath.length === 0) {
-    console.error('폴리라인을 표시할 유효한 좌표가 없습니다.');
-    return;
+    console.error('폴리라인을 표시할 유효한 좌표가 없습니다.')
+    return
   }
 
-  // 폴리라인 렌더링 지연
+  // 폴리라인 렌더링
   setTimeout(() => {
     try {
       polyline.value = new window.kakao.maps.Polyline({
@@ -533,20 +595,20 @@ const displayRouteOnMap = () => {
         strokeColor: '#4361ee',
         strokeOpacity: 0.8,
         strokeStyle: 'solid'
-      });
-      console.log('폴리라인 생성됨:', polyline.value);
-      polyline.value.setMap(map.value);
-      console.log('폴리라인이 지도에 표시됨, 좌표 수:', routePath.length);
+      })
+
+      polyline.value.setMap(map.value)
+      console.log('폴리라인이 지도에 표시됨, 좌표 수:', routePath.length)
 
       // 지도 범위를 경로에 맞게 조정
-      const bounds = new window.kakao.maps.LatLngBounds();
-      routePath.forEach(point => bounds.extend(point));
-      map.value.setBounds(bounds);
+      const bounds = new window.kakao.maps.LatLngBounds()
+      routePath.forEach(point => bounds.extend(point))
+      map.value.setBounds(bounds)
     } catch (error) {
-      console.error('폴리라인 렌더링 오류:', error);
+      console.error('폴리라인 렌더링 오류:', error)
     }
-  }, 100);
-};
+  }, 100)
+}
 
 // 여행 계획 저장 (서버에 저장)
 const saveTripPlan = async () => {
@@ -639,69 +701,58 @@ const saveTripPlan = async () => {
 }
 
 const initMap = () => {
-  console.log('지도 초기화 중...');
-  let container = document.getElementById('map');
-  console.log('일반 DOM에서 #map:', container);
+  console.log('지도 초기화 중...')
+  let container = document.getElementById('map')
 
   if (!container) {
-    const shadowRoot = document.querySelector('trip-plan-view')?.shadowRoot;
-    console.log('Shadow Root:', shadowRoot);
-    if (shadowRoot) {
-      container = shadowRoot.getElementById('map');
-      console.log('Shadow DOM에서 #map:', container);
-    }
+    console.error('맵 컨테이너를 찾을 수 없습니다.')
+    return
   }
 
-  if (!container) {
-    console.error('맵 컨테이너를 찾을 수 없습니다.');
-    return;
-  }
-
-  container.style.width = '90%';
-  container.style.height = '500px';
-  container.style.display = 'block';
-  console.log('맵 컨테이너 스타일:', container.style);
+  container.style.width = '90%'
+  container.style.height = '500px'
+  container.style.display = 'block'
 
   if (window.kakao && window.kakao.maps) {
-    console.log('Kakao Maps API 로드됨, 맵 생성 중');
-    createMap(container);
+    console.log('Kakao Maps API 로드됨, 맵 생성 중')
+    createMap(container)
   } else {
-    console.log('Kakao Maps API 로드 중');
-    const script = document.createElement('script');
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_API_KEY}&libraries=services&autoload=false`;
-    script.async = true;
+    console.log('Kakao Maps API 로드 중')
+    const script = document.createElement('script')
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_API_KEY}&libraries=services&autoload=false`
+    script.async = true
     script.onload = () => {
       window.kakao.maps.load(() => {
-        console.log('Kakao Maps API 로드 성공');
-        createMap(container);
-      });
-    };
+        console.log('Kakao Maps API 로드 성공')
+        createMap(container)
+      })
+    }
     script.onerror = () => {
-      console.error('Kakao Maps SDK 로드 실패');
-    };
-    document.head.appendChild(script);
+      console.error('Kakao Maps SDK 로드 실패')
+    }
+    document.head.appendChild(script)
   }
-};
+}
 
 const createMap = (container) => {
   const options = {
     center: new window.kakao.maps.LatLng(36.2, 127.9),
     level: 13
-  };
+  }
 
-  map.value = new window.kakao.maps.Map(container, options);
-  console.log('Map created:', map.value);
+  map.value = new window.kakao.maps.Map(container, options)
+  console.log('Map created:', map.value)
 
   if (selectedAttractions.value.length > 0) {
-    console.log('Displaying markers for attractions:', selectedAttractions.value);
-    displayMarkers();
+    console.log('Displaying markers for attractions:', selectedAttractions.value)
+    displayMarkers()
     if (selectedAttractions.value.length > 1) {
-      calculateRouteWithAPI();
+      calculateRouteWithAPI()
     }
   }
-};
+}
 
-// 마커 표시
+// 마커 표시 (출발지/목적지/경유지만)
 const displayMarkers = () => {
   console.log('Displaying markers...')
   clearMarkers()
@@ -714,9 +765,30 @@ const displayMarkers = () => {
       attraction.longitude
     )
 
+    // 마커 아이콘 설정 (출발지/목적지/경유지 구분)
+    let markerImageSrc = ''
+    let markerSize = new window.kakao.maps.Size(24, 35)
+
+    if (index === 0) {
+      // 출발지 - 녹색
+      markerImageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_green.png'
+    } else if (index === selectedAttractions.value.length - 1) {
+      // 목적지 - 빨간색
+      markerImageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png'
+    } else {
+      // 경유지 - 파란색
+      markerImageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_blue.png'
+    }
+
+    const markerImage = new window.kakao.maps.MarkerImage(
+      markerImageSrc,
+      markerSize
+    )
+
     const marker = new window.kakao.maps.Marker({
       position: position,
-      map: map.value
+      map: map.value,
+      image: markerImage
     })
 
     const iwContent = `
@@ -800,15 +872,15 @@ watch(selectedAttractions, () => {
 
 // 컴포넌트 마운트 시 데이터 로드 및 지도 초기화
 onMounted(async () => {
-  console.log('초기 상태 확인 - routeLoading:', routeLoading.value, 'routeError:', routeError.value);
-  routeLoading.value = false;
-  routeError.value = false;
-  const { Modal } = await import('bootstrap');
-  savedPlansModal = new Modal(savedPlansModalRef.value);
-  loadSelectedAttractions();
-  await nextTick();
-  initMap();
-});
+  console.log('초기 상태 확인 - routeLoading:', routeLoading.value, 'routeError:', routeError.value)
+  routeLoading.value = false
+  routeError.value = false
+  const { Modal } = await import('bootstrap')
+  savedPlansModal = new Modal(savedPlansModalRef.value)
+  loadSelectedAttractions()
+  await nextTick()
+  initMap()
+})
 </script>
 
 <style scoped>
@@ -894,23 +966,42 @@ onMounted(async () => {
   max-width: 1200px;
 }
 
-/* 경로 계산 관련 스타일 */
-.route-loading-container,
-.route-error-container {
-  min-height: 500px;
+/* 지도 컨테이너 및 오버레이 스타일 */
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 500px;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f8f9fa;
+  z-index: 1000;
   border-radius: 0.375rem;
 }
 
-.route-loading-container .spinner-border {
+.map-overlay-error {
+  background-color: rgba(248, 249, 250, 0.95);
+}
+
+.overlay-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+.overlay-content .spinner-border {
   width: 3rem;
   height: 3rem;
 }
 
-.route-error-container i {
+.overlay-content i {
   color: #f39c12;
 }
 
@@ -938,9 +1029,8 @@ onMounted(async () => {
     max-height: 300px;
   }
 
-  .route-loading-container,
-  .route-error-container {
-    min-height: 300px;
+  .map-container {
+    height: 300px;
   }
 
   #map {
@@ -954,6 +1044,10 @@ onMounted(async () => {
 
   .route-info .d-flex > div {
     text-align: center;
+  }
+
+  .overlay-content {
+    padding: 1rem;
   }
 }
 </style>
