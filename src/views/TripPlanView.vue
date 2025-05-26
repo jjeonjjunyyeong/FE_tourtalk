@@ -1,198 +1,9 @@
-<template>
-  <div class="trip-plan-view">
-    <h2 class="mb-4">여행 계획</h2>
-
-    <div class="row">
-      <!-- 좌측: 선택된 관광지 목록 -->
-      <div class="col-lg-4">
-        <div class="card shadow-sm mb-4">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">선택한 관광지</h5>
-            <div class="btn-group">
-              <button class="btn btn-sm btn-outline-danger" @click="clearAllAttractions" :disabled="selectedAttractions.length === 0">
-                전체 삭제
-              </button>
-            </div>
-          </div>
-          <div class="card-body p-0">
-
-            <div v-if="selectedAttractions.length === 0" class="text-center py-5">
-              <i class="bi bi-map display-4 text-muted"></i>
-              <p class="mt-2">선택된 관광지가 없습니다.</p>
-              <div class="d-flex flex-column gap-2">
-                <router-link to="/attractions" class="btn btn-primary">
-                  <i class="bi bi-search me-1"></i>
-                  관광지 검색하기
-                </router-link>
-                <button class="btn btn-outline-primary" @click="showSavedPlansModal">
-                  <i class="bi bi-folder me-1"></i>
-                  저장된 일정 불러오기
-                </button>
-              </div>
-            </div>
-
-            <draggable
-              v-else
-              v-model="selectedAttractions"
-              group="attractions"
-              item-key="no"
-              class="selected-list"
-              @change="calculateRoute"
-            >
-              <template #item="{ element, index }">
-                <div class="selected-item">
-                  <div class="drag-handle">
-                    <i class="bi bi-grip-vertical"></i>
-                  </div>
-
-                  <div class="item-number">{{ index + 1 }}</div>
-
-                  <div class="item-image">
-                    <img
-                      v-if="element.firstImage1"
-                      :src="element.firstImage1"
-                      :alt="element.title"
-                      class="rounded"
-                    >
-                    <div v-else class="no-image rounded">
-                      <i class="bi bi-image"></i>
-                    </div>
-                  </div>
-
-                  <div class="item-info">
-                    <div class="item-title">{{ element.title || '제목 없음' }}</div>
-                    <div class="item-location">
-                      {{ element.sido }} {{ element.gugun }}
-                    </div>
-                  </div>
-
-                  <button class="btn btn-sm btn-link text-danger delete-btn" @click="removeAttraction(index)">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
-              </template>
-            </draggable>
-          </div>
-
-          <div v-if="selectedAttractions.length > 0" class="card-footer">
-            <div class="d-flex justify-content-between">
-              <button class="btn btn-outline-primary btn-sm" @click="showSavedPlansModal">
-                <i class="bi bi-folder me-1"></i>
-                저장된 일정
-              </button>
-              <button class="btn btn-primary" @click="saveTripPlan">
-                <i class="bi bi-save me-1"></i>
-                여행 계획 저장
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 우측: 지도와 경로 -->
-      <div class="col-lg-8">
-        <div class="card shadow-sm mb-4">
-          <div class="card-body">
-            <h5 class="mb-3">여행 경로</h5>
-
-            <div id="map" style="height: 500px;"></div>
-
-            <div v-if="selectedAttractions.length > 1" class="route-info mt-3">
-              <div class="alert alert-info">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>총 이동 거리:</strong> {{ formatDistance(totalDistance) }}
-                    <span class="mx-2">|</span>
-                    <strong>예상 소요 시간:</strong> {{ formatDuration(totalDuration) }}
-                  </div>
-
-                  <a :href="getNaviUrl()" target="_blank" class="btn btn-sm btn-primary">
-                    <i class="bi bi-signpost-2 me-1"></i>
-                    길찾기
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <div v-else-if="selectedAttractions.length === 1" class="route-info mt-3">
-              <div class="alert alert-warning">
-                <div class="d-flex align-items-center">
-                  <i class="bi bi-info-circle me-2"></i>
-                  <span>경로를 계산하려면 2개 이상의 관광지를 선택하세요.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 날짜 및 메모 -->
-        <div class="card shadow-sm mb-4">
-          <div class="card-body">
-            <h5 class="mb-3">여행 정보</h5>
-
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label for="tripName" class="form-label">여행 이름</label>
-                <input type="text" id="tripName" v-model="tripPlan.name" class="form-control" placeholder="여행 이름을 입력하세요">
-              </div>
-
-              <div class="col-md-3">
-                <label for="startDate" class="form-label">시작 날짜</label>
-                <input type="date" id="startDate" v-model="tripPlan.startDate" class="form-control">
-              </div>
-
-              <div class="col-md-3">
-                <label for="endDate" class="form-label">종료 날짜</label>
-                <input type="date" id="endDate" v-model="tripPlan.endDate" class="form-control">
-              </div>
-
-              <div class="col-12">
-                <label for="tripMemo" class="form-label">메모</label>
-                <textarea
-                  id="tripMemo"
-                  v-model="tripPlan.description"
-                  class="form-control"
-                  rows="4"
-                  placeholder="여행에 대한 메모를 남겨보세요"
-                ></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 저장된 일정 목록 모달 -->
-    <div class="modal fade" id="savedPlansModal" tabindex="-1" aria-hidden="true" ref="savedPlansModalRef">
-      <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">저장된 여행 계획</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <!-- SavedTripPlanList 컴포넌트 사용 -->
-            <SavedTripPlanList
-              v-model="selectedPlanIds"
-              @load-plan="loadTripPlan"
-              @plans-updated="onPlansUpdated"
-              ref="savedTripPlanListRef"
-            />
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import draggable from 'vuedraggable'
 import tripPlanService from '@/services/tripPlan'
+import routeService from '@/services/route'
 import SavedTripPlanList from '@/components/trip/SavedTripPlanList.vue'
 
 const route = useRoute()
@@ -205,9 +16,12 @@ const savedTripPlanListRef = ref(null)
 const selectedPlanIds = ref([])
 let savedPlansModal = null
 
-// 경로 계산 결과
-const totalDistance = ref(0)
-const totalDuration = ref(0)
+// 경로 관련 상태
+const routeLoading = ref(false)
+const routeError = ref(false)
+const routeErrorMessage = ref('')
+const routeInfo = ref(null)
+const routeCoordinates = ref([])
 
 // 여행 계획 정보
 const tripPlan = reactive({
@@ -276,8 +90,13 @@ const loadTripPlan = async (tripPlanId) => {
         viewCnt: 0
       }))
 
-    totalDistance.value = parseFloat(data.totalDistance) || 0
-    totalDuration.value = data.totalDuration || 0
+    // 기존 경로 정보 설정
+    routeInfo.value = {
+      totalDistance: parseInt(data.totalDistance) || 0,
+      totalTime: data.totalDuration || 0,
+      tollFare: 0,
+      taxiFare: 0
+    }
 
     // localStorage 업데이트
     saveTripPlanToLocal()
@@ -286,7 +105,9 @@ const loadTripPlan = async (tripPlanId) => {
     setTimeout(() => {
       if (selectedAttractions.value.length > 0) {
         displayMarkers()
-        calculateRoute()
+        if (selectedAttractions.value.length > 1) {
+          calculateRouteWithAPI()
+        }
       }
     }, 100)
 
@@ -315,7 +136,14 @@ const onPlansUpdated = (plans) => {
 // 관광지 삭제
 const removeAttraction = (index) => {
   selectedAttractions.value.splice(index, 1)
-  calculateRoute()
+  if (selectedAttractions.value.length > 1) {
+    calculateRouteWithAPI()
+  } else {
+    // 관광지가 1개 이하면 경로 정보 초기화
+    routeInfo.value = null
+    routeCoordinates.value = []
+    displayMarkers()
+  }
   saveTripPlanToLocal()
 }
 
@@ -323,7 +151,9 @@ const removeAttraction = (index) => {
 const clearAllAttractions = () => {
   if (confirm('정말 모든 관광지를 삭제하시겠습니까?')) {
     selectedAttractions.value = []
-    calculateRoute()
+    routeInfo.value = null
+    routeCoordinates.value = []
+    clearMarkers()
     saveTripPlanToLocal()
   }
 }
@@ -332,6 +162,107 @@ const clearAllAttractions = () => {
 const saveTripPlanToLocal = () => {
   const data = { attractions: selectedAttractions.value }
   localStorage.setItem('tripPlan', JSON.stringify(data))
+}
+
+// Kakao Mobility API를 사용한 경로 계산
+const calculateRouteWithAPI = async () => {
+  if (selectedAttractions.value.length < 2 || !map.value) {
+    console.log('Not enough attractions or map not initialized')
+    return
+  }
+
+  routeLoading.value = true
+  routeError.value = false
+
+  try {
+    // 관광지 배열을 RouteRequestDto로 변환
+    const routeRequest = routeService.convertAttractionsToRouteRequest(selectedAttractions.value);
+
+    console.log('Requesting route with:', routeRequest)
+
+    const { data } = await routeService.searchRoute(routeRequest)
+    
+    // 경로 정보 저장
+    routeInfo.value = data.routeInfo
+    routeCoordinates.value = data.coordinates || []
+
+    console.log('Route calculation success:', data)
+
+    // 지도에 경로 표시
+    displayRouteOnMap()
+
+  } catch (error) {
+    console.error('Route calculation failed:', error)
+    routeError.value = true
+    routeErrorMessage.value = routeService.getErrorMessage(error)
+    
+    // 실패시 기본 마커만 표시
+    displayMarkers()
+    
+  } finally {
+    routeLoading.value = false
+  }
+}
+
+// 경로 계산 재시도
+const retryRouteCalculation = () => {
+  routeError.value = false
+  calculateRouteWithAPI()
+}
+
+// 기본 지도 표시 (직선 연결)
+const showBasicMap = () => {
+  routeError.value = false
+  displayMarkers()
+  
+  // 직선으로 연결
+  if (selectedAttractions.value.length > 1) {
+    const linePath = selectedAttractions.value.map(attraction =>
+      new window.kakao.maps.LatLng(attraction.latitude, attraction.longitude)
+    )
+
+    if (polyline.value) {
+      polyline.value.setMap(null)
+    }
+
+    polyline.value = new window.kakao.maps.Polyline({
+      path: linePath,
+      strokeWeight: 2,
+      strokeColor: '#ff6b6b',
+      strokeOpacity: 0.6,
+      strokeStyle: 'dashed'
+    })
+
+    polyline.value.setMap(map.value)
+  }
+}
+
+// 지도에 실제 경로 표시
+const displayRouteOnMap = () => {
+  displayMarkers()
+
+  if (routeCoordinates.value.length > 0) {
+    // 기존 폴리라인 제거
+    if (polyline.value) {
+      polyline.value.setMap(null)
+    }
+
+    // 실제 경로 좌표로 폴리라인 생성
+    const routePath = routeCoordinates.value.map(coord =>
+      new window.kakao.maps.LatLng(parseFloat(coord.latitude), parseFloat(coord.longitude))
+    )
+
+    polyline.value = new window.kakao.maps.Polyline({
+      path: routePath,
+      strokeWeight: 4,
+      strokeColor: '#4361ee',
+      strokeOpacity: 0.8,
+      strokeStyle: 'solid'
+    })
+
+    polyline.value.setMap(map.value)
+    console.log('Route displayed on map with', routeCoordinates.value.length, 'coordinates')
+  }
 }
 
 // 여행 계획 저장 (서버에 저장)
@@ -354,8 +285,8 @@ const saveTripPlan = async () => {
       description: tripPlan.description || '',
       startDate: tripPlan.startDate,
       endDate: tripPlan.endDate,
-      totalDistance: totalDistance.value || 0,
-      totalDuration: totalDuration.value || 0,
+      totalDistance: routeInfo.value?.totalDistance || 0,
+      totalDuration: routeInfo.value?.totalTime || 0,
       status: 'COMPLETED',
       attractions: selectedAttractions.value.map((attraction, index) => ({
         attractionId: attraction.no,
@@ -375,8 +306,8 @@ const saveTripPlan = async () => {
     // 성공 후 화면 및 localStorage 초기화
     selectedAttractions.value = []
     clearMarkers()
-    totalDistance.value = 0
-    totalDuration.value = 0
+    routeInfo.value = null
+    routeCoordinates.value = []
 
     tripPlan.name = '나의 여행 계획'
     tripPlan.startDate = new Date().toISOString().split('T')[0]
@@ -469,7 +400,9 @@ const createMap = () => {
   if (selectedAttractions.value.length > 0) {
     console.log('Displaying markers for attractions:', selectedAttractions.value)
     displayMarkers()
-    calculateRoute()
+    if (selectedAttractions.value.length > 1) {
+      calculateRouteWithAPI()
+    }
   }
 }
 
@@ -526,94 +459,31 @@ const clearMarkers = () => {
   }
 }
 
-// 경로 계산
-const calculateRoute = () => {
-  console.log('Calculating route with attractions:', selectedAttractions.value)
-  if (selectedAttractions.value.length < 2 || !map.value) {
-    console.log('Not enough attractions or map not initialized')
-    totalDistance.value = 0
-    totalDuration.value = 0
-    return
-  }
-
-  displayMarkers()
-
-  const linePath = selectedAttractions.value.map(attraction =>
-    new window.kakao.maps.LatLng(attraction.latitude, attraction.longitude)
-  )
-  console.log('Line path:', linePath)
-
-  if (polyline.value) {
-    polyline.value.setMap(null)
-  }
-
-  polyline.value = new window.kakao.maps.Polyline({
-    path: linePath,
-    strokeWeight: 3,
-    strokeColor: '#4361ee',
-    strokeOpacity: 0.8,
-    strokeStyle: 'solid'
-  })
-
-  polyline.value.setMap(map.value)
-  calculateDistanceAndDuration()
+// 거리 포맷 (미터 -> km)
+const formatDistance = (distanceInMeters) => {
+  if (!distanceInMeters) return '0km'
+  const km = distanceInMeters / 1000
+  return `${km.toFixed(1)}km`
 }
 
-// 거리와 시간 계산
-const calculateDistanceAndDuration = () => {
-  console.log('Calculating distance and duration...')
-  let distance = 0
-
-  for (let i = 0; i < selectedAttractions.value.length - 1; i++) {
-    const start = selectedAttractions.value[i]
-    const end = selectedAttractions.value[i + 1]
-
-    const d = getDistanceFromLatLon(
-      start.latitude, start.longitude,
-      end.latitude, end.longitude
-    )
-
-    distance += d
-  }
-
-  totalDistance.value = distance
-  totalDuration.value = (distance / 60) * 60
-  console.log('Total distance:', totalDistance.value, 'Total duration:', totalDuration.value)
-}
-
-// 두 지점 간 거리 계산 (하버사인 공식)
-const getDistanceFromLatLon = (lat1, lon1, lat2, lon2) => {
-  const R = 6371 // 지구 반경 (km)
-  const dLat = deg2rad(lat2 - lat1)
-  const dLon = deg2rad(lon2 - lon1)
-  const a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon/2) * Math.sin(dLon/2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-  const distance = R * c
-  return distance
-}
-
-const deg2rad = (deg) => {
-  return deg * (Math.PI/180)
-}
-
-// 거리 포맷
-const formatDistance = (distance) => {
-  return `${distance.toFixed(1)} km`
-}
-
-// 소요 시간 포맷
-const formatDuration = (duration) => {
-  const hours = Math.floor(duration / 60)
-  const minutes = Math.floor(duration % 60)
+// 소요 시간 포맷 (초 -> 시간/분)
+const formatDuration = (durationInSeconds) => {
+  if (!durationInSeconds) return '0분'
+  
+  const hours = Math.floor(durationInSeconds / 3600)
+  const minutes = Math.floor((durationInSeconds % 3600) / 60)
 
   if (hours > 0) {
     return `${hours}시간 ${minutes}분`
   } else {
     return `${minutes}분`
   }
+}
+
+// 통행료 포맷
+const formatCurrency = (amount) => {
+  if (!amount) return '0원'
+  return `${amount.toLocaleString()}원`
 }
 
 // 카카오 네비게이션 URL 생성
@@ -648,94 +518,6 @@ onMounted(async () => {
   setTimeout(() => {
     console.log('Before initMap:', selectedAttractions.value)
     initMap()
-    if (selectedAttractions.value.length > 0) {
-      console.log('Calculating route with:', selectedAttractions.value)
-      calculateRoute()
-    }
   }, 100)
 })
 </script>
-
-<style scoped>
-.selected-list {
-  max-height: 500px;
-}
-
-.selected-item {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #eee;
-}
-
-.selected-item:last-child {
-  border-bottom: none;
-}
-
-.drag-handle {
-  cursor: move;
-  margin-right: 0.5rem;
-  color: #adb5bd;
-}
-
-.item-number {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 24px;
-  height: 24px;
-  background-color: #4361ee;
-  color: white;
-  border-radius: 50%;
-  font-size: 0.8rem;
-  font-weight: bold;
-  margin-right: 0.5rem;
-}
-
-.item-image {
-  width: 50px;
-  height: 50px;
-  flex-shrink: 0;
-  margin-right: 0.75rem;
-}
-
-.item-image img, .item-image .no-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.item-image .no-image {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f8f9fa;
-  color: #adb5bd;
-}
-
-.item-info {
-  flex-grow: 1;
-}
-
-.item-title {
-  font-weight: bold;
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.item-location {
-  font-size: 0.8rem;
-  color: #6c757d;
-}
-
-.delete-btn {
-  padding: 0;
-  margin-left: 0.5rem;
-}
-
-.modal-dialog {
-  max-width: 1200px;
-}
-</style>
