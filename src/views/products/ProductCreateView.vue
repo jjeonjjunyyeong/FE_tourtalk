@@ -179,6 +179,12 @@
         <button type="submit" class="btn btn-primary">등록하기</button>
       </div>
     </form>
+    <BaseModal
+      :visible="showModal"
+      :message="modalMessage"
+      :mode="modalType"
+      @close="handleModalClose"
+    />
   </div>
 </template>
 
@@ -188,6 +194,17 @@ import { useRouter } from 'vue-router'
 import attractionService from '@/services/attraction'
 import productService from '@/services/product'
 import fileService from '@/services/file'
+import BaseModal from '@/components/BaseModal.vue'
+
+// 모달 관련 설정
+const showModal = ref(false)
+const modalMessage = ref('')
+const modalType = ref('success')
+const openModal = (message, type = 'success') => {
+  modalMessage.value = message
+  modalType.value = type
+  showModal.value = true
+}
 
 const router = useRouter()
 
@@ -293,17 +310,15 @@ const handleImageUpload = async (e) => {
     }
 
     form.value.thumbnailImg = result.filePath
-    // .env 파일 추가하면 수정, 임시로 하드코딩
-    const baseUrl = 'http://localhost:8080'
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
     previewImage.value = `${baseUrl}/${result.filePath}`
-    //const baseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?.*$/, '')
-    //previewImage.value = baseUrl + '/' + result.filePath
-    alert('이미지 업로드 성공')
+    openModal('이미지 업로드 성공', 'alert')
   } catch (err) {
     console.error('상품 이미지 업로드 실패:', err)
     form.value.thumbnailImg = ''
     previewImage.value = ''
-    alert('상품 이미지 업로드에 실패했습니다.')
+    openModal('상품 이미지 업로드에 실패했습니다.', 'alert')
   }
 }
 
@@ -315,11 +330,17 @@ const submitProduct = async () => {
       meetingBeforeMinutes: Number(meetingBeforeMinutes.value),
     }
     await productService.createProduct(payload)
-    alert('상품이 성공적으로 등록되었습니다.')
-    router.push('/products/manage')
+    openModal('상품이 성공적으로 등록되었습니다.', 'alert')
   } catch (err) {
     console.error('상품 등록 실패:', err)
-    alert('상품 등록 중 오류가 발생했습니다.')
+    openModal('상품 등록에 실패했습니다.', 'alert')
+  }
+}
+
+const handleModalClose = () => {
+  showModal.value = false
+  if (modalMessage.value.includes('등록되었습니다')) {
+    router.push('/products/manage')
   }
 }
 </script>

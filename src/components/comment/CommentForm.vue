@@ -41,14 +41,31 @@
       </button>
     </div>
   </form>
+  <BaseModal
+    :visible="showModal"
+    :message="modalMessage"
+    :mode="modalMode"
+    @close="showModal = false"
+  />
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import commentService from '@/services/comment'
+import BaseModal from '@/components/BaseModal.vue'
 
 const props = defineProps(['postId'])
 const emit = defineEmits(['comment-added'])
+
+// 모달 관련 설정
+const showModal = ref(false)
+const modalMessage = ref('')
+const modalMode = ref('alert')
+const openModal = (msg, mode = 'alert') => {
+  modalMessage.value = msg
+  modalMode.value = mode
+  showModal.value = true
+}
 
 const content = ref('')
 const status = ref('ACTIVE')
@@ -67,7 +84,7 @@ async function submitComment() {
     emit('comment-added')
   } catch (err) {
     console.error('댓글 작성 실패:', err)
-    alert('댓글 작성 중 오류가 발생했습니다.')
+    openModal('댓글 작성 중 오류가 발생했습니다.')
   }
 }
 </script>

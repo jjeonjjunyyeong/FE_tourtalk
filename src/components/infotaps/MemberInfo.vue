@@ -44,7 +44,7 @@
         <!-- 오른쪽 정보 -->
         <div class="info-section flex-grow-1">
           <div class="info-grid">
-            <div class="info-box" v-for="(label, key) in allFields" :key="key">
+            <div class="info-box" v-for="(label, key) in filteredFields" :key="key">
               <label>{{ label }}</label>
               <div class="info-value">
                 <template v-if="isEditable(key)">
@@ -126,16 +126,33 @@
         </div>
       </div>
     </div>
+    <BaseModal
+      :visible="showModal"
+      :message="modalMessage"
+      :mode="modalType"
+      @close="handleModalClose"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import memberService from '@/services/member'
 import fileService from '@/services/file'
 import auth from '@/services/auth'
+import BaseModal from '@/components/BaseModal.vue'
 
-const apiBase = __API_BASE_URL__
+// 모달 관련 상태
+const showModal = ref(false)
+const modalMessage = ref('')
+const modalType = ref('alert')
+const openModal = (message, type = 'alert') => {
+  modalMessage.value = message
+  modalType.value = type
+  showModal.value = true
+}
+
+const apiBase = import.meta.env.VITE_API_BASE_URL
 const member = ref({})
 const isEditMode = ref(false)
 
@@ -149,6 +166,13 @@ const allFields = {
   status: '상태',
   curatorNo: '자격증 번호',
 }
+
+const filteredFields = computed(() => {
+  if (member.value.role === 'CURATOR') return allFields
+  const copy = { ...allFields }
+  delete copy.curatorNo
+  return copy
+})
 
 const editableFieldsByRole = {
   USER: ['nickname', 'phone', 'gender', 'birthDate', 'address'],
@@ -195,9 +219,9 @@ const saveEdit = async () => {
   try {
     await memberService.updateMember(member.value)
     isEditMode.value = false
-    alert('회원 정보가 수정되었습니다.')
+    openModal('회원 정보가 수정되었습니다.')
   } catch (e) {
-    alert('정보 수정에 실패했습니다.')
+    openModal('정보 수정에 실패했습니다.')
   }
 }
 
@@ -209,7 +233,7 @@ const handleProfileUpload = async (e) => {
     await memberService.updateProfileImg(result.filePath)
     member.value.profileImgPath = result.filePath
   } catch (err) {
-    alert('프로필 업로드 실패')
+    openModal('프로필 이미지 업로드에 실패했습니다.')
   }
 }
 
@@ -220,7 +244,7 @@ const handleCuratorImgUpload = async (e) => {
     const result = await fileService.upload(file, 'curators')
     member.value.curatorImg = result.filePath
   } catch (err) {
-    alert('자격증 이미지 업로드 실패')
+    openModal('자격증 이미지 업로드에 실패했습니다.')
   }
 }
 
@@ -236,9 +260,11 @@ const toggleWithdrawInput = () => {
   showWithdrawInput.value = !showWithdrawInput.value
 }
 
+const isWithdrawComplete = ref(false)
+
 const withdrawMember = async () => {
   if (!withdrawPassword.value) {
-    alert('비밀번호를 입력해주세요.')
+    openModal('비밀번호를 입력해주세요.')
     return
   }
   try {
@@ -246,11 +272,18 @@ const withdrawMember = async () => {
       mno: member.value.mno,
       password: withdrawPassword.value,
     })
-    alert('회원 탈퇴가 완료되었습니다.')
-    auth.logout()
-    window.location.href = '/' // 또는 router.push('/')
+    openModal('회원 탈퇴가 완료되었습니다.')
+    isWithdrawComplete.value = true
   } catch (e) {
-    alert('비밀번호가 일치하지 않거나 탈퇴에 실패했습니다.')
+    openModal('비밀번호가 일치하지 않거나 탈퇴에 실패했습니다.')
+  }
+}
+
+const handleModalClose = () => {
+  showModal.value = false
+  if (isWithdrawComplete.value) {
+    auth.logout()
+    window.location.href = '/'
   }
 }
 </script>

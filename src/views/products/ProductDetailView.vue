@@ -1,5 +1,12 @@
 <template>
   <div class="product-detail container py-5" v-if="product">
+    <!-- 목록으로 돌아가기 버튼 -->
+    <div class="mb-3">
+      <button class="btn btn-outline-secondary" @click="goBack">
+        <i class="bi bi-arrow-left me-1"></i> 목록으로 돌아가기
+      </button>
+    </div>
+
     <!-- 이미지 + 정보 카드 -->
     <div class="card shadow-sm mb-4">
       <div class="row g-0">
@@ -71,10 +78,23 @@
           >
             <div class="d-flex align-items-center gap-3">
               <span>🕒 {{ formatTime(time) }}</span>
-              <span class="badge bg-success">모집 중</span>
+              <span
+                class="badge"
+                :class="{
+                  'bg-success': getTimeSlotStatus(time) === '모집 중',
+                  'bg-secondary': getTimeSlotStatus(time) === '모집 완료',
+                  'bg-danger': getTimeSlotStatus(time) === '취소됨',
+                }"
+              >
+                {{ getTimeSlotStatus(time) }}
+              </span>
               <span>예약 {{ reservations[formatTime(time)] || 0 }}명</span>
             </div>
-            <button class="btn btn-outline-primary btn-sm">
+            <button
+              class="btn btn-outline-primary btn-sm"
+              :disabled="getTimeSlotStatus(time) !== '모집 중'"
+              @click="goToBooking(time)"
+            >
               <i class="bi bi-cart-plus me-1"></i> 예약하기
             </button>
           </li>
@@ -91,34 +111,48 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import productService from '@/services/product'
 import bookingService from '@/services/tourBooking'
 import memberService from '@/services/member'
 
 const route = useRoute()
+const router = useRouter()
 const productId = route.params.productId
 const product = ref(null)
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 const reservations = ref({})
 const curatorNickname = ref('')
 
-const formatTime = (timeStr) => {
-  return timeStr?.slice(0, 5)
+const goBack = () => {
+  router.push({ name: 'ProductBooking' }) // ✅ 존재하는 라우트 이름 사용
 }
 
+const goToBooking = (time) => {
+  const formattedTime = formatTime(time)
+  router.push({ name: 'BookingView', params: { productId, time: formattedTime } })
+}
+
+const formatTime = (timeStr) => timeStr?.slice(0, 5)
 const formatDate = (str) => {
   if (!str) return ''
   const d = new Date(str)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
 }
-
 const formatDateTime = (str) => {
   if (!str) return ''
   const d = new Date(str)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()} ${d.getHours()}:${String(
     d.getMinutes()
   ).padStart(2, '0')}`
+}
+
+const getTimeSlotStatus = (time) => {
+  const reserved = reservations.value[formatTime(time)] || 0
+  const max = product.value.maxParticipants
+  if (product.value.status === 'CANCELLED') return '취소됨'
+  if (reserved >= max) return '모집 완료'
+  return '모집 중'
 }
 
 const loadCuratorNickname = async (mno) => {

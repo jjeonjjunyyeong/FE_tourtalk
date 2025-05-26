@@ -113,6 +113,11 @@ const routes = [
     name: 'ProductBooking',
     component: () => import('@/views/products/ProductBookingView.vue'),
   },
+  {
+    path: '/products/:productId/book/:time?',
+    name: 'BookingView',
+    component: () => import('@/views/products/ProductBookingReserveView.vue'),
+  },
 ]
 
 const router = createRouter({

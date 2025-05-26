@@ -246,12 +246,37 @@
       </div>
     </div>
   </div>
+
+  <BaseModal
+    :visible="showModal"
+    :message="modalMessage"
+    :mode="modalMode"
+    @close="
+      () => {
+        showModal = false
+        if (modalMessage.includes('회원가입 완료')) {
+          router.push('/login')
+        }
+      }
+    "
+  />
 </template>
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import memberService from '@/services/member'
+import BaseModal from '@/components/BaseModal.vue'
+
+// 모달 관련 설정
+const showModal = ref(false)
+const modalMessage = ref('')
+const modalMode = ref('alert')
+const openModal = (msg, mode = 'alert') => {
+  modalMessage.value = msg
+  modalMode.value = mode
+  showModal.value = true
+}
 
 // 라우터
 const router = useRouter()
@@ -351,18 +376,12 @@ const register = async () => {
     // 주소 결합
     userData.address = `${userData.addressMain} ${userData.addressDetail}`.trim()
 
-    const response = await memberService.regist({ ...userData })
-    message.value = '회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.'
-    messageType.value = 'success'
+    await memberService.regist({ ...userData })
 
-    setTimeout(() => {
-      alert('회원가입 완료!')
-      router.push('/login')
-    }, 2000)
+    openModal('회원가입 완료! 로그인 페이지로 이동합니다.', 'alert')
   } catch (err) {
     console.error('회원가입 실패:', err)
-    message.value = err.response?.data?.message || '회원가입 처리 중 오류가 발생했습니다.'
-    messageType.value = 'error'
+    openModal(err.response?.data?.message || '회원가입 처리 중 오류가 발생했습니다.', 'alert')
   } finally {
     loading.value = false
   }

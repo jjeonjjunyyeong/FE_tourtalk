@@ -98,15 +98,39 @@
       </div>
     </nav>
   </header>
+  <BaseModal
+    :visible="showModal"
+    :message="modalMessage"
+    :mode="modalMode"
+    @close="
+      () => {
+        showModal = false
+        if (modalMessage.includes('로그아웃')) {
+          router.push('/')
+        }
+      }
+    "
+  />
 </template>
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import BaseModal from '@/components/BaseModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+// 모달 관련 설정
+const showModal = ref(false)
+const modalMessage = ref('')
+const modalMode = ref('alert')
+const openModal = (msg, mode = 'alert') => {
+  modalMessage.value = msg
+  modalMode.value = mode
+  showModal.value = true
+}
 
 // 전역 상태로부터 로그인 여부와 닉네임 가져오기
 const isLoggedIn = computed(() => authStore.isLogin)
@@ -120,10 +144,11 @@ const logo = ref(null)
 const onLogout = async () => {
   try {
     await authStore.logout() // 상태 초기화 + 쿠키 제거
-    alert('로그아웃되었습니다.')
+    openModal('로그아웃되었습니다.')
     router.push('/')
   } catch (error) {
     console.error('로그아웃 처리 중 오류:', error)
+    openModal('로그아웃 중 오류가 발생했습니다.', 'alert')
   }
 }
 

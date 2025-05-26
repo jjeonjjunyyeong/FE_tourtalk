@@ -271,6 +271,20 @@
       </div>
     </div>
   </div>
+
+  <BaseModal
+    :visible="showModal"
+    :message="modalMessage"
+    :mode="modalMode"
+    @close="
+      () => {
+        showModal = false
+        if (modalMessage.includes('회원가입 완료')) {
+          router.push('/login')
+        }
+      }
+    "
+  />
 </template>
 
 <script setup>
@@ -278,6 +292,17 @@ import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import memberService from '@/services/member'
 import fileService from '@/services/file'
+import BaseModal from '@/components/BaseModal.vue'
+
+// 모달 관련 설정
+const showModal = ref(false)
+const modalMessage = ref('')
+const modalMode = ref('alert')
+const openModal = (msg, mode = 'alert') => {
+  modalMessage.value = msg
+  modalMode.value = mode
+  showModal.value = true
+}
 
 // 라우터
 const router = useRouter()
@@ -322,11 +347,11 @@ const handleImageUpload = async (e) => {
   try {
     const result = await fileService.upload(file, type)
     curatorData.curatorImg = result.filePath
-    alert('이미지 업로드 성공')
+    openModal('이미지 업로드 성공')
   } catch (err) {
     console.error('이미지 업로드 실패', err)
     curatorData.curatorImg = ''
-    alert('이미지 업로드에 실패했습니다.')
+    openModal('이미지 업로드에 실패했습니다.')
   }
 }
 
@@ -399,18 +424,15 @@ const register = async () => {
     // 주소 결합
     curatorData.address = `${curatorData.addressMain} ${curatorData.addressDetail}`.trim()
 
-    const response = await memberService.regist({ ...curatorData })
+    await memberService.regist({ ...curatorData })
+
     message.value = '회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.'
     messageType.value = 'success'
 
-    setTimeout(() => {
-      alert('회원가입 완료!')
-      router.push('/login')
-    }, 1000)
+    openModal('회원가입 완료! 로그인 페이지로 이동합니다.', 'alert')
   } catch (err) {
     console.error('회원가입 실패:', err)
-    message.value = err.response?.data?.message || '회원가입 처리 중 오류가 발생했습니다.'
-    messageType.value = 'error'
+    openModal(err.response?.data?.message || '회원가입 처리 중 오류가 발생했습니다.', 'alert')
   } finally {
     loading.value = false
   }

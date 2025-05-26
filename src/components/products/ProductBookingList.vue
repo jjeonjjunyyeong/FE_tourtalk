@@ -44,7 +44,10 @@
               >
                 <i class="bi bi-search me-1"></i> 자세히 보기
               </router-link>
-              <router-link class="btn btn-primary btn-sm" :to="`/booking/${product.productId}`">
+              <router-link
+                class="btn btn-primary btn-sm"
+                :to="{ name: 'BookingView', params: { productId: product.productId } }"
+              >
                 <i class="bi bi-cart-plus me-1"></i> 예약하기
               </router-link>
             </div>

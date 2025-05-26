@@ -66,7 +66,6 @@ const searchProducts = async () => {
       totalPages: data.totalPages,
       totalElements: data.totalElements,
     }
-    console.log('조회된 상품:', data.content)
   } catch (error) {
     console.error('상품 목록 조회 실패:', error)
   } finally {
