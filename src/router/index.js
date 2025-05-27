@@ -120,11 +120,40 @@ const routes = [
     meta: { requiresAuth: true, role: 'CURATOR' },
   },
   {
+    path: '/products/edit/:productId',
+    name: 'ProductEdit',
+    component: () => import('@/views/products/ProductEditView.vue'),
+    meta: { requiresAuth: true, role: 'CURATOR' },
+    props: true,
+  },
+  {
+    path: '/products/:productId',
+    name: 'ProductDetail',
+    component: () => import('@/views/products/ProductDetailView.vue'),
+    props: true,
+  },
+  {
     path: '/admin/users',
     name: 'UserManage',
     component: () => import('@/views/admin/UserManageView.vue'),
     meta: { requiresAuth: true, role: 'ADMIN' },
   },
+  {
+    path: '/products/booking',
+    name: 'ProductBooking',
+    component: () => import('@/views/products/ProductBookingView.vue'),
+  },
+  {
+    path: '/products/:productId/book/:time?',
+    name: 'BookingView',
+    component: () => import('@/views/products/ProductBookingReserveView.vue'),
+  },
+ {
+    path: '/admin/boards',
+    name: 'BoardsManage',
+    component: () => import('@/views/admin/BoardsManageView.vue'),
+    meta: { requiresAuth: true, role: 'ADMIN'},
+ },
 ]
 
 const router = createRouter({

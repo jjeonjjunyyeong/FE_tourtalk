@@ -18,7 +18,7 @@
     </div>
 
     <div v-else class="row g-4">
-      <div v-for="product in products" :key="product.productId" class="col-md-6">
+      <div v-for="product in products" :key="product.productId" class="col-md-4">
         <div class="card shadow-sm h-100">
           <img
             v-if="product.thumbnailImg"
@@ -45,7 +45,7 @@
                 class="btn btn-outline-danger btn-sm"
                 @click="deleteProduct(product.productId)"
               >
-                삭제
+                취소
               </button>
             </div>
           </div>
@@ -58,12 +58,10 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import productService from '@/services/product'
-import { useAuthStore } from '@/stores/authStore'
 
 const loading = ref(false)
 const products = ref([])
 const apiBase = import.meta.env.VITE_API_BASE_URL
-const authStore = useAuthStore()
 
 // 상품 상태 라벨
 const statusLabel = (status) => {
@@ -90,7 +88,7 @@ const statusClass = (status) => {
 const fetchProducts = async () => {
   loading.value = true
   try {
-    const res = await productService.getMyProducts(authStore.mno)
+    const res = await productService.getMyProducts()
     products.value = res.data
   } catch (err) {
     console.error('상품 목록 조회 실패:', err)
@@ -101,12 +99,12 @@ const fetchProducts = async () => {
 
 // 상품 삭제
 const deleteProduct = async (productId) => {
-  if (!confirm('정말 삭제하시겠습니까?')) return
+  if (!confirm('정말 취소하시겠습니까?')) return
   try {
-    await productService.deleteProduct(productId)
-    products.value = products.value.filter((p) => p.productId !== productId)
+    await productService.softDeleteProduct(productId)
+    await fetchProducts() // 목록 전체를 다시 가져와서 갱신
   } catch (err) {
-    console.error('상품 삭제 실패:', err)
+    console.error('상품 취소 실패:', err)
   }
 }
 

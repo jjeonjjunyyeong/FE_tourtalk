@@ -29,6 +29,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import memberService from '@/services/member'
 
 import MemberInfo from '@/components/infotaps/MemberInfo.vue'
@@ -38,8 +39,9 @@ import MyGroups from '@/components/infotaps/MyGroups.vue'
 import MyBookings from '@/components/infotaps/MyBookings.vue'
 
 const apiBase = __API_BASE_URL__
+const route = useRoute()
 const member = ref({})
-const currentTab = ref('info')
+const currentTab = ref(route.query.tab || 'info')
 
 const menuItems = [
   { key: 'info', label: '회원 정보' },

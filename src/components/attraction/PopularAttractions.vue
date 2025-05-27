@@ -14,51 +14,26 @@
       <p class="mt-2">인기 관광지를 불러오는 중입니다...</p>
     </div>
 
+    <!-- AttractionCard 컴포넌트 재사용 -->
     <div v-else class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-      <div v-for="attraction in popularAttractions" :key="attraction.no" class="col">
-        <div class="card h-100 shadow-sm popular-card">
-          <div class="rank-badge">{{ getOrdinalNumber(attraction.rank) }}</div>
-          <div class="d-flex">
-            <div class="image-wrapper">
-              <img
-                v-if="attraction.firstImage1"
-                :src="attraction.firstImage1"
-                class="rounded"
-                :alt="attraction.title"
-              />
-              <div v-else class="no-image rounded">
-                <i class="bi bi-image"></i>
-              </div>
-            </div>
-            <div class="card-body d-flex flex-column">
-              <h6 class="card-title text-truncate mb-1" :title="attraction.title">
-                {{ attraction.title }}
-              </h6>
-              <small class="text-muted mb-1">
-                <i class="bi bi-geo-alt-fill"></i> {{ attraction.sido_name }}
-              </small>
-              <div class="view-count mt-auto">
-                <i class="bi bi-eye"></i> {{ attraction.view_cnt }}
-              </div>
-              <router-link :to="`/attractions/${attraction.no}`" class="stretched-link">
-                <span class="visually-hidden">상세보기</span>
-              </router-link>
-            </div>
-          </div>
-        </div>
+      <div v-for="attraction in popularAttractions" :key="attraction.no" class="col d-flex">
+        <attraction-card :attraction="attraction" class="w-100" />
       </div>
     </div>
   </section>
 </template>
 
+
 <script setup>
 import { ref, onMounted, defineProps } from 'vue'
 import attractionService from '@/services/attraction'
+import AttractionCard from '@/components/attraction/AttractionCard.vue'
 
 const props = defineProps({
   limit: {
     type: Number,
     default: 4,
+
   },
 })
 
@@ -105,56 +80,7 @@ onMounted(fetchPopularAttractions)
 </script>
 
 <style scoped>
-.popular-card {
-  position: relative;
-  transition: transform 0.2s;
-  cursor: pointer;
-}
-
-.popular-card:hover {
-  transform: translateY(-5px);
-}
-
-.rank-badge {
-  position: absolute;
-  top: -10px;
-  left: -10px;
-  background-color: #4361ee;
-  color: white;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-  font-size: 0.8rem;
-  z-index: 1;
-}
-
-.image-wrapper {
-  width: 100px;
-  height: 100px;
-  padding: 8px;
-}
-
-.image-wrapper img,
-.no-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.no-image {
-  background-color: #f8f9fa;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #adb5bd;
-}
-
-.view-count {
-  font-size: 0.8rem;
-  color: #6c757d;
+.popular-attractions {
+  margin-top: 2rem;
 }
 </style>

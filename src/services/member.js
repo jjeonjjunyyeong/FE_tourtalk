@@ -32,4 +32,9 @@ export default {
   softDelete(data) {
     return apiClient.post('/member/deleted', data)
   },
+
+  // mno로 nickname 조회
+  getNicknameByMno(mno) {
+    return apiClient.get(`/member/${mno}/nickname`)
+  },
 }

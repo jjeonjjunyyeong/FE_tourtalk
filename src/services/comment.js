@@ -22,4 +22,11 @@ export default {
   softDeleteComment(commentId) {
     return apiClient.delete(`comments/${commentId}`)
   },
+
+  // 마이페이지 : 내 댓글 조회
+  getMyComments(writerId, page, size) {
+    return apiClient.get('/comments/myComments', {
+      params: { writerId, pageNumber: page, size },
+    })
+  },
 }
