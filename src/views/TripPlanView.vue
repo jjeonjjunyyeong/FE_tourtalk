@@ -37,7 +37,7 @@
               group="attractions"
               item-key="no"
               class="selected-list"
-              @change="calculateRoute"
+              @change="calculateRouteWithAPI"
             >
               <template #item="{ element, index }">
                 <div class="selected-item">
@@ -95,15 +95,52 @@
           <div class="card-body">
             <h5 class="mb-3">여행 경로</h5>
 
-            <div id="map" style="height: 500px;"></div>
+            <!-- 지도 컨테이너 (항상 표시) -->
+            <div class="map-container">
+              <div id="map" style="width: 90%; height: 500px;"></div>
 
-            <div v-if="selectedAttractions.length > 1" class="route-info mt-3">
+              <!-- 로딩 오버레이 -->
+              <div v-show="routeLoading" class="map-overlay">
+                <div class="overlay-content">
+                  <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">경로 계산 중...</span>
+                  </div>
+                  <h5>경로를 계산하는 중입니다...</h5>
+                  <p class="text-muted">잠시만 기다려주세요.</p>
+                </div>
+              </div>
+
+              <!-- 에러 오버레이 -->
+              <div v-show="routeError" class="map-overlay map-overlay-error">
+                <div class="overlay-content">
+                  <i class="bi bi-exclamation-triangle display-4 text-warning mb-3"></i>
+                  <h5>경로를 찾을 수 없습니다</h5>
+                  <p class="text-muted mb-3">{{ routeErrorMessage }}</p>
+                  <div class="d-flex gap-2 justify-content-center">
+                    <button class="btn btn-primary" @click="retryRouteCalculation">
+                      <i class="bi bi-arrow-clockwise me-1"></i>
+                      다시 시도
+                    </button>
+                    <button class="btn btn-outline-secondary" @click="showBasicMap">
+                      <i class="bi bi-map me-1"></i>
+                      기본 지도 보기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="selectedAttractions.length > 1 && routeInfo" class="route-info mt-3">
               <div class="alert alert-info">
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
-                    <strong>총 이동 거리:</strong> {{ formatDistance(totalDistance) }}
+                    <strong>총 이동 거리:</strong> {{ formatDistance(routeInfo.totalDistance) }}
                     <span class="mx-2">|</span>
-                    <strong>예상 소요 시간:</strong> {{ formatDuration(totalDuration) }}
+                    <strong>예상 소요 시간:</strong> {{ formatDuration(routeInfo.totalTime) }}
+                    <span v-if="routeInfo.tollFare > 0" class="mx-2">|</span>
+                    <span v-if="routeInfo.tollFare > 0">
+                      <strong>통행료:</strong> {{ formatCurrency(routeInfo.tollFare) }}
+                    </span>
                   </div>
 
                   <a :href="getNaviUrl()" target="_blank" class="btn btn-sm btn-primary">
@@ -188,500 +225,662 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive, onMounted, watch, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
-import draggable from 'vuedraggable';
-import tripPlanService from '@/services/tripPlan';
-import SavedTripPlanList from '@/components/trip/SavedTripPlanList.vue';
+<script setup>
+import { ref, reactive, onMounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
+import draggable from 'vuedraggable'
+import tripPlanService from '@/services/tripPlan'
+import routeService from '@/services/route'
+import SavedTripPlanList from '@/components/trip/SavedTripPlanList.vue'
 
-export default {
-  name: 'TripPlanView',
-  components: {
-    draggable,
-    SavedTripPlanList
-  },
-  setup() {
-    const route = useRoute();
-    const selectedAttractions = ref([]);
-    const map = ref(null);
-    const markers = ref([]);
-    const polyline = ref(null);
-    const savedPlansModalRef = ref(null);
-    const savedTripPlanListRef = ref(null);
-    const selectedPlanIds = ref([]);
-    let savedPlansModal = null;
+const route = useRoute()
+const selectedAttractions = ref([])
+const map = ref(null)
+const markers = ref([])
+const polyline = ref(null)
+const savedPlansModalRef = ref(null)
+const savedTripPlanListRef = ref(null)
+const selectedPlanIds = ref([])
+let savedPlansModal = null
 
-    // 경로 계산 결과
-    const totalDistance = ref(0);
-    const totalDuration = ref(0);
+// 경로 관련 상태
+const routeLoading = ref(false)
+const routeError = ref(false)
+const routeErrorMessage = ref('')
+const routeInfo = ref(null)
+const routeCoordinates = ref([])
 
-    // 여행 계획 정보
-    const tripPlan = reactive({
-      name: '나의 여행 계획',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      description: '',
-      attractions: []
-    });
+// 여행 계획 정보
+const tripPlan = reactive({
+  name: '나의 여행 계획',
+  startDate: new Date().toISOString().split('T')[0],
+  endDate: new Date().toISOString().split('T')[0],
+  description: '',
+  attractions: []
+})
 
-    // 로컬 스토리지에서 선택된 관광지 불러오기
-    const loadSelectedAttractions = () => {
-      try {
-        const savedData = localStorage.getItem('tripPlan');
+// 거리 계산 함수 (Haversine 공식)
+const calculateDistance = (coord1, coord2) => {
+  const R = 6371e3 // 지구 반지름 (미터)
+  const lat1Rad = coord1.latitude * Math.PI / 180
+  const lat2Rad = coord2.latitude * Math.PI / 180
+  const deltaLatRad = (coord2.latitude - coord1.latitude) * Math.PI / 180
+  const deltaLngRad = (coord2.longitude - coord1.longitude) * Math.PI / 180
 
-        if (!savedData) {
-          console.warn('No tripPlan data found in localStorage');
-          selectedAttractions.value = [];
-          return;
-        }
+  const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+           Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+           Math.sin(deltaLngRad / 2) * Math.sin(deltaLngRad / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
-        const saved = JSON.parse(savedData);
+  return R * c // 미터 단위 거리
+}
 
-        if (saved && Array.isArray(saved.attractions)) {
-          selectedAttractions.value = saved.attractions;
-        } else {
-          console.error('Invalid format: saved.attractions is not an array');
-          selectedAttractions.value = [];
-        }
-      } catch (error) {
-        console.error('Error parsing localStorage data:', error);
-        selectedAttractions.value = [];
+// 중복 좌표 제거 함수 (10m 이내)
+const removeDuplicateCoordinates = (coordinates) => {
+  if (!coordinates || coordinates.length <= 1) return coordinates
+
+  const filtered = [coordinates[0]] // 첫 번째 좌표는 항상 포함
+
+  for (let i = 1; i < coordinates.length; i++) {
+    const current = coordinates[i]
+    let isDuplicate = false
+
+    // 이미 필터된 좌표들과 비교
+    for (let j = 0; j < filtered.length; j++) {
+      const distance = calculateDistance(current, filtered[j])
+      if (distance < 10) { // 10m 이내면 중복으로 간주
+        isDuplicate = true
+        break
       }
-    };
+    }
 
-    // 저장된 일정 모달 표시
-    const showSavedPlansModal = () => {
-      savedPlansModal.show();
-    };
+    if (!isDuplicate) {
+      filtered.push(current)
+    }
+  }
 
-    // 특정 여행 계획 불러오기
-    const loadTripPlan = async (tripPlanId) => {
-      try {
-        console.log('Loading trip plan with ID:', tripPlanId);
-        const { data } = await tripPlanService.getTripPlanDetail(tripPlanId);
+  console.log(`좌표 중복 제거: ${coordinates.length} -> ${filtered.length}`)
+  return filtered
+}
 
-        // 여행 계획 기본 정보 설정
-        tripPlan.name = data.name;
-        tripPlan.description = data.description;
-        tripPlan.startDate = data.startDate;
-        tripPlan.endDate = data.endDate;
+// 성능 최적화를 위한 좌표 간소화 함수
+const optimizeCoordinates = (coordinates, maxPoints = 1000) => {
+  if (!coordinates || coordinates.length <= maxPoints) {
+    return coordinates
+  }
 
-        // 관광지 데이터를 프론트엔드 형태로 변환
-        selectedAttractions.value = data.attractions
-          .sort((a, b) => a.visitOrder - b.visitOrder)
-          .map(item => ({
-            no: item.attractionId,
-            title: item.attractionTitle,
-            latitude: parseFloat(item.latitude),
-            longitude: parseFloat(item.longitude),
-            sido: item.sido,
-            gugun: item.gugun,
-            addr: item.addr,
-            contentTypeName: '관광지',
-            firstImage1: '',
-            viewCnt: 0
-          }));
+  // Douglas-Peucker 알고리즘의 간단한 버전
+  const step = Math.ceil(coordinates.length / maxPoints)
+  const optimized = []
 
-        totalDistance.value = parseFloat(data.totalDistance) || 0;
-        totalDuration.value = data.totalDuration || 0;
+  // 첫 번째와 마지막 좌표는 반드시 포함
+  optimized.push(coordinates[0])
 
-        // localStorage 업데이트
-        saveTripPlanToLocal();
+  for (let i = step; i < coordinates.length - 1; i += step) {
+    optimized.push(coordinates[i])
+  }
 
-        // 지도 업데이트
-        setTimeout(() => {
-          if (selectedAttractions.value.length > 0) {
-            displayMarkers();
-            calculateRoute();
-          }
-        }, 100);
+  // 마지막 좌표 포함
+  if (coordinates.length > 1) {
+    optimized.push(coordinates[coordinates.length - 1])
+  }
 
-        // 모달 닫기
-        savedPlansModal.hide();
-        alert('여행 계획을 불러왔습니다.');
+  console.log(`좌표 최적화: ${coordinates.length} -> ${optimized.length}`)
+  return optimized
+}
 
-      } catch (error) {
-        console.error('여행 계획 로드 실패:', error);
+// 로컬 스토리지에서 선택된 관광지 불러오기
+const loadSelectedAttractions = () => {
+  try {
+    const savedData = localStorage.getItem('tripPlan')
 
-        if (error.response?.status === 401) {
-          alert('로그인이 필요합니다.');
-        } else if (error.response?.status === 404) {
-          alert('해당 여행 계획을 찾을 수 없습니다.');
-        } else {
-          alert('여행 계획을 불러오는데 실패했습니다.');
-        }
-      }
-    };
+    if (!savedData) {
+      console.warn('No tripPlan data found in localStorage')
+      selectedAttractions.value = []
+      return
+    }
 
-    // 저장된 계획 목록 업데이트 이벤트 처리
-    const onPlansUpdated = (plans) => {
-      console.log('Plans updated:', plans.length, '개');
-    };
+    const saved = JSON.parse(savedData)
 
-    // 관광지 삭제
-    const removeAttraction = (index) => {
-      selectedAttractions.value.splice(index, 1);
-      calculateRoute();
-      saveTripPlanToLocal();
-    };
+    if (saved && Array.isArray(saved.attractions)) {
+      selectedAttractions.value = saved.attractions
+    } else {
+      console.error('Invalid format: saved.attractions is not an array')
+      selectedAttractions.value = []
+    }
+  } catch (error) {
+    console.error('Error parsing localStorage data:', error)
+    selectedAttractions.value = []
+  }
+}
 
-    // 전체 관광지 삭제
-    const clearAllAttractions = () => {
-      if (confirm('정말 모든 관광지를 삭제하시겠습니까?')) {
-        selectedAttractions.value = [];
-        calculateRoute();
-        saveTripPlanToLocal();
-      }
-    };
+// 저장된 일정 모달 표시
+const showSavedPlansModal = () => {
+  savedPlansModal.show()
+}
 
-    // 로컬 스토리지에 저장
-    const saveTripPlanToLocal = () => {
-      const data = { attractions: selectedAttractions.value };
-      localStorage.setItem('tripPlan', JSON.stringify(data));
-    };
+// 특정 여행 계획 불러오기
+const loadTripPlan = async (tripPlanId) => {
+  try {
+    console.log('Loading trip plan with ID:', tripPlanId)
+    const { data } = await tripPlanService.getTripPlanDetail(tripPlanId)
 
-    // 여행 계획 저장 (서버에 저장)
-    const saveTripPlan = async () => {
-      try {
-        if (selectedAttractions.value.length === 0) {
-          alert('저장할 관광지가 없습니다.');
-          return;
-        }
+    // 여행 계획 기본 정보 설정
+    tripPlan.name = data.name
+    tripPlan.description = data.description
+    tripPlan.startDate = data.startDate
+    tripPlan.endDate = data.endDate
 
-        // 날짜 유효성 검사
-        if (new Date(tripPlan.startDate) > new Date(tripPlan.endDate)) {
-          alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
-          return;
-        }
+    // 관광지 데이터를 프론트엔드 형태로 변환
+    selectedAttractions.value = data.attractions
+      .sort((a, b) => a.visitOrder - b.visitOrder)
+      .map(item => ({
+        no: item.attractionId,
+        title: item.attractionTitle,
+        latitude: parseFloat(item.latitude),
+        longitude: parseFloat(item.longitude),
+        sido: item.sido,
+        gugun: item.gugun,
+        addr: item.addr,
+        contentTypeName: '관광지',
+        firstImage1: '',
+        viewCnt: 0
+      }))
 
-        // Backend로 전달할 데이터 형태로 변환
-        const backendData = {
-          name: tripPlan.name || '나의 여행 계획',
-          description: tripPlan.description || '',
-          startDate: tripPlan.startDate,
-          endDate: tripPlan.endDate,
-          totalDistance: totalDistance.value || 0,
-          totalDuration: totalDuration.value || 0,
-          status: 'COMPLETED',
-          attractions: selectedAttractions.value.map((attraction, index) => ({
-            attractionId: attraction.no,
-            attractionTitle: attraction.title,
-            visitOrder: index + 1,
-            latitude: attraction.latitude,
-            longitude: attraction.longitude,
-            sido: attraction.sido,
-            gugun: attraction.gugun,
-            addr: attraction.addr
-          }))
-        };
+    // 기존 경로 정보 설정
+    routeInfo.value = {
+      totalDistance: parseInt(data.totalDistance) || 0,
+      totalTime: data.totalDuration || 0,
+      tollFare: 0,
+      taxiFare: 0
+    }
 
-        const response = await tripPlanService.saveTripPlan(backendData);
-        console.log('여행 계획 저장 성공:', response.data);
+    // localStorage 업데이트
+    saveTripPlanToLocal()
 
-        // 성공 후 화면 및 localStorage 초기화
-        selectedAttractions.value = [];
-        clearMarkers();
-        totalDistance.value = 0;
-        totalDuration.value = 0;
-
-        tripPlan.name = '나의 여행 계획';
-        tripPlan.startDate = new Date().toISOString().split('T')[0];
-        tripPlan.endDate = new Date().toISOString().split('T')[0];
-        tripPlan.description = '';
-        tripPlan.attractions = [];
-
-        localStorage.removeItem('tripPlan');
-
-        alert('여행 계획이 성공적으로 저장되었습니다.');
-
-        // 저장된 일정 목록 새로고침
-        if (savedTripPlanListRef.value) {
-          savedTripPlanListRef.value.refresh();
-        }
-
-      } catch (error) {
-        console.error('여행 계획 저장 실패:', error);
-
-        if (error.response) {
-          const status = error.response.status;
-          const message = error.response.data || '알 수 없는 오류가 발생했습니다.';
-
-          switch (status) {
-            case 400:
-              alert(`잘못된 요청입니다: ${message}`);
-              break;
-            case 401:
-              alert('로그인이 필요합니다.');
-              break;
-            case 403:
-              alert('권한이 없습니다.');
-              break;
-            case 500:
-              alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-              break;
-            default:
-              alert(`오류가 발생했습니다 (${status}): ${message}`);
-          }
-        } else if (error.request) {
-          alert('서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
-        } else {
-          alert('요청 처리 중 오류가 발생했습니다.');
-        }
-      }
-    };
-
-    // 지도 초기화
-    const initMap = () => {
-      console.log('Initializing map...');
-      const container = document.getElementById('map');
-      if (!container) {
-        console.error('Map container not found');
-        return;
-      }
-
-      if (window.kakao && window.kakao.maps) {
-        console.log('Kakao Maps API loaded, creating map');
-        createMap();
-      } else {
-        console.log('Loading Kakao Maps API');
-        const script = document.createElement('script');
-        script.onload = () => {
-          window.kakao.maps.load(() => {
-            console.log('Kakao Maps API loaded successfully');
-            createMap();
-          });
-        };
-        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=88add3cf720f39380a84327647c428b1&libraries=services&autoload=false`;
-        document.head.appendChild(script);
-      }
-    };
-
-    // 지도 생성
-    const createMap = () => {
-      const container = document.getElementById('map');
-      if (!container) {
-        console.error('Map container not found in createMap');
-        return;
-      }
-
-      const options = {
-        center: new window.kakao.maps.LatLng(36.2, 127.9),
-        level: 13
-      };
-
-      map.value = new window.kakao.maps.Map(container, options);
-      console.log('Map created:', map.value);
-
+    // 지도 업데이트
+    setTimeout(() => {
       if (selectedAttractions.value.length > 0) {
-        console.log('Displaying markers for attractions:', selectedAttractions.value);
-        displayMarkers();
-        calculateRoute();
+        displayMarkers()
+        if (selectedAttractions.value.length > 1) {
+          calculateRouteWithAPI()
+        }
       }
-    };
+    }, 100)
 
-    // 마커 표시
-    const displayMarkers = () => {
-      console.log('Displaying markers...');
-      clearMarkers();
+    // 모달 닫기
+    savedPlansModal.hide()
+    alert('여행 계획을 불러왔습니다.')
 
-      const bounds = new window.kakao.maps.LatLngBounds();
+  } catch (error) {
+    console.error('여행 계획 로드 실패:', error)
 
-      selectedAttractions.value.forEach((attraction, index) => {
-        const position = new window.kakao.maps.LatLng(
-          attraction.latitude,
-          attraction.longitude
-        );
+    if (error.response?.status === 401) {
+      alert('로그인이 필요합니다.')
+    } else if (error.response?.status === 404) {
+      alert('해당 여행 계획을 찾을 수 없습니다.')
+    } else {
+      alert('여행 계획을 불러오는데 실패했습니다.')
+    }
+  }
+}
 
-        const marker = new window.kakao.maps.Marker({
-          position: position,
-          map: map.value
-        });
+// 저장된 계획 목록 업데이트 이벤트 처리
+const onPlansUpdated = (plans) => {
+  console.log('Plans updated:', plans.length, '개')
+}
 
-        const iwContent = `
-          <div style="padding:5px;font-size:12px;width:150px;text-align:center;">
-            <b>${index + 1}. ${attraction.title}</b>
-          </div>
-        `;
+// 관광지 삭제
+const removeAttraction = (index) => {
+  selectedAttractions.value.splice(index, 1)
+  if (selectedAttractions.value.length > 1) {
+    calculateRouteWithAPI()
+  } else {
+    // 관광지가 1개 이하면 경로 정보 초기화
+    routeInfo.value = null
+    routeCoordinates.value = []
+    displayMarkers()
+  }
+  saveTripPlanToLocal()
+}
 
-        const infowindow = new window.kakao.maps.InfoWindow({
-          content: iwContent
-        });
+// 전체 관광지 삭제
+const clearAllAttractions = () => {
+  if (confirm('정말 모든 관광지를 삭제하시겠습니까?')) {
+    selectedAttractions.value = []
+    routeInfo.value = null
+    routeCoordinates.value = []
+    clearMarkers()
+    saveTripPlanToLocal()
+  }
+}
 
-        infowindow.open(map.value, marker);
-        markers.value.push(marker);
-        bounds.extend(position);
-      });
+// 로컬 스토리지에 저장
+const saveTripPlanToLocal = () => {
+  const data = { attractions: selectedAttractions.value }
+  localStorage.setItem('tripPlan', JSON.stringify(data))
+}
 
-      if (selectedAttractions.value.length > 0) {
-        map.value.setBounds(bounds);
-        console.log('Map bounds set');
+// Kakao Mobility API를 사용한 경로 계산
+const calculateRouteWithAPI = async () => {
+  if (selectedAttractions.value.length < 2 || !map.value) {
+    console.log('Not enough attractions or map not initialized')
+    return
+  }
+
+  routeLoading.value = true
+  routeError.value = false
+
+  try {
+    // 관광지 배열을 RouteRequestDto로 변환
+    const routeRequest = routeService.convertAttractionsToRouteRequest(selectedAttractions.value);
+
+    console.log('Requesting route with:', routeRequest)
+
+    const { data } = await routeService.searchRoute(routeRequest)
+
+    // 경로 정보 저장
+    routeInfo.value = data.routeInfo
+    routeCoordinates.value = data.coordinates || []
+
+    console.log('Route calculation success:', data)
+
+    // 지도에 경로 표시
+    displayRouteOnMap()
+
+  } catch (error) {
+    console.error('Route calculation failed:', error)
+    routeError.value = true
+    routeErrorMessage.value = routeService.getErrorMessage(error)
+
+    // 실패시 기본 마커만 표시
+    displayMarkers()
+
+  } finally {
+    routeLoading.value = false
+  }
+}
+
+// 경로 계산 재시도
+const retryRouteCalculation = () => {
+  routeError.value = false
+  calculateRouteWithAPI()
+}
+
+// 기본 지도 표시 (직선 연결)
+const showBasicMap = () => {
+  routeError.value = false
+  displayMarkers()
+
+  // 직선으로 연결
+  if (selectedAttractions.value.length > 1) {
+    const linePath = selectedAttractions.value.map(attraction =>
+      new window.kakao.maps.LatLng(attraction.latitude, attraction.longitude)
+    )
+
+    if (polyline.value) {
+      polyline.value.setMap(null)
+    }
+
+    polyline.value = new window.kakao.maps.Polyline({
+      path: linePath,
+      strokeWeight: 2,
+      strokeColor: '#ff6b6b',
+      strokeOpacity: 0.6,
+      strokeStyle: 'dashed'
+    })
+
+    polyline.value.setMap(map.value)
+  }
+}
+
+// 지도에 실제 경로 표시
+const displayRouteOnMap = () => {
+  console.log('지도에 경로 표시 중...')
+
+  // 맵 초기화 확인
+  if (!map.value) {
+    console.error('맵이 초기화되지 않았습니다.')
+    return
+  }
+
+  // 마커 표시 (출발지/목적지/경유지만)
+  displayMarkers()
+
+  // 경로 좌표 유효성 확인
+  if (!routeCoordinates.value || routeCoordinates.value.length < 2) {
+    console.warn('경로 좌표가 충분하지 않습니다.')
+    return
+  }
+
+  // 기존 폴리라인 제거
+  if (polyline.value) {
+    polyline.value.setMap(null)
+    polyline.value = null
+  }
+
+  // 좌표 전처리: 중복 제거 및 성능 최적화
+  let processedCoordinates = removeDuplicateCoordinates(routeCoordinates.value)
+  processedCoordinates = optimizeCoordinates(processedCoordinates, 1000)
+
+  // 카카오맵 좌표 객체로 변환
+  const routePath = processedCoordinates
+    .map(coord => {
+      if (!coord || coord.latitude == null || coord.longitude == null) {
+        return null
       }
-    };
-
-    // 마커 제거
-    const clearMarkers = () => {
-      console.log('Clearing markers...');
-      markers.value.forEach(marker => {
-        marker.setMap(null);
-      });
-      markers.value = [];
-
-      if (polyline.value) {
-        polyline.value.setMap(null);
-        polyline.value = null;
+      const lat = parseFloat(coord.latitude)
+      const lng = parseFloat(coord.longitude)
+      if (isNaN(lat) || isNaN(lng)) {
+        return null
       }
-    };
+      return new window.kakao.maps.LatLng(lat, lng)
+    })
+    .filter(coord => coord !== null)
 
-    // 경로 계산
-    const calculateRoute = () => {
-      console.log('Calculating route with attractions:', selectedAttractions.value);
-      if (selectedAttractions.value.length < 2 || !map.value) {
-        console.log('Not enough attractions or map not initialized');
-        totalDistance.value = 0;
-        totalDuration.value = 0;
-        return;
-      }
+  console.log('폴리라인에 사용할 경로 좌표:', routePath.length, '개')
 
-      displayMarkers();
+  // 유효한 좌표가 있는지 확인
+  if (routePath.length === 0) {
+    console.error('폴리라인을 표시할 유효한 좌표가 없습니다.')
+    return
+  }
 
-      const linePath = selectedAttractions.value.map(attraction =>
-        new window.kakao.maps.LatLng(attraction.latitude, attraction.longitude)
-      );
-      console.log('Line path:', linePath);
-
-      if (polyline.value) {
-        polyline.value.setMap(null);
-      }
-
+  // 폴리라인 렌더링
+  setTimeout(() => {
+    try {
       polyline.value = new window.kakao.maps.Polyline({
-        path: linePath,
-        strokeWeight: 3,
+        path: routePath,
+        strokeWeight: 4,
         strokeColor: '#4361ee',
         strokeOpacity: 0.8,
         strokeStyle: 'solid'
-      });
+      })
 
-      polyline.value.setMap(map.value);
-      calculateDistanceAndDuration();
-    };
+      polyline.value.setMap(map.value)
+      console.log('폴리라인이 지도에 표시됨, 좌표 수:', routePath.length)
 
-    // 거리와 시간 계산
-    const calculateDistanceAndDuration = () => {
-      console.log('Calculating distance and duration...');
-      let distance = 0;
+      // 지도 범위를 경로에 맞게 조정
+      const bounds = new window.kakao.maps.LatLngBounds()
+      routePath.forEach(point => bounds.extend(point))
+      map.value.setBounds(bounds)
+    } catch (error) {
+      console.error('폴리라인 렌더링 오류:', error)
+    }
+  }, 100)
+}
 
-      for (let i = 0; i < selectedAttractions.value.length - 1; i++) {
-        const start = selectedAttractions.value[i];
-        const end = selectedAttractions.value[i + 1];
+// 여행 계획 저장 (서버에 저장)
+const saveTripPlan = async () => {
+  try {
+    if (selectedAttractions.value.length === 0) {
+      alert('저장할 관광지가 없습니다.')
+      return
+    }
 
-        const d = getDistanceFromLatLon(
-          start.latitude, start.longitude,
-          end.latitude, end.longitude
-        );
+    // 날짜 유효성 검사
+    if (new Date(tripPlan.startDate) > new Date(tripPlan.endDate)) {
+      alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.')
+      return
+    }
 
-        distance += d;
+    // Backend로 전달할 데이터 형태로 변환
+    const backendData = {
+      name: tripPlan.name || '나의 여행 계획',
+      description: tripPlan.description || '',
+      startDate: tripPlan.startDate,
+      endDate: tripPlan.endDate,
+      totalDistance: routeInfo.value?.totalDistance || 0,
+      totalDuration: routeInfo.value?.totalTime || 0,
+      status: 'COMPLETED',
+      attractions: selectedAttractions.value.map((attraction, index) => ({
+        attractionId: attraction.no,
+        attractionTitle: attraction.title,
+        visitOrder: index + 1,
+        latitude: attraction.latitude,
+        longitude: attraction.longitude,
+        sido: attraction.sido,
+        gugun: attraction.gugun,
+        addr: attraction.addr
+      }))
+    }
+
+    const response = await tripPlanService.saveTripPlan(backendData)
+    console.log('여행 계획 저장 성공:', response.data)
+
+    // 성공 후 화면 및 localStorage 초기화
+    selectedAttractions.value = []
+    clearMarkers()
+    routeInfo.value = null
+    routeCoordinates.value = []
+
+    tripPlan.name = '나의 여행 계획'
+    tripPlan.startDate = new Date().toISOString().split('T')[0]
+    tripPlan.endDate = new Date().toISOString().split('T')[0]
+    tripPlan.description = ''
+    tripPlan.attractions = []
+
+    localStorage.removeItem('tripPlan')
+
+    alert('여행 계획이 성공적으로 저장되었습니다.')
+
+    // 저장된 일정 목록 새로고침
+    if (savedTripPlanListRef.value) {
+      savedTripPlanListRef.value.refresh()
+    }
+
+  } catch (error) {
+    console.error('여행 계획 저장 실패:', error)
+
+    if (error.response) {
+      const status = error.response.status
+      const message = error.response.data || '알 수 없는 오류가 발생했습니다.'
+
+      switch (status) {
+        case 400:
+          alert(`잘못된 요청입니다: ${message}`)
+          break
+        case 401:
+          alert('로그인이 필요합니다.')
+          break
+        case 403:
+          alert('권한이 없습니다.')
+          break
+        case 500:
+          alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+          break
+        default:
+          alert(`오류가 발생했습니다 (${status}): ${message}`)
       }
-
-      totalDistance.value = distance;
-      totalDuration.value = (distance / 60) * 60;
-      console.log('Total distance:', totalDistance.value, 'Total duration:', totalDuration.value);
-    };
-
-    // 두 지점 간 거리 계산 (하버사인 공식)
-    const getDistanceFromLatLon = (lat1, lon1, lat2, lon2) => {
-      const R = 6371; // 지구 반경 (km)
-      const dLat = deg2rad(lat2 - lat1);
-      const dLon = deg2rad(lon2 - lon1);
-      const a =
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = R * c;
-      return distance;
-    };
-
-    const deg2rad = (deg) => {
-      return deg * (Math.PI/180);
-    };
-
-    // 거리 포맷
-    const formatDistance = (distance) => {
-      return `${distance.toFixed(1)} km`;
-    };
-
-    // 소요 시간 포맷
-    const formatDuration = (duration) => {
-      const hours = Math.floor(duration / 60);
-      const minutes = Math.floor(duration % 60);
-
-      if (hours > 0) {
-        return `${hours}시간 ${minutes}분`;
-      } else {
-        return `${minutes}분`;
-      }
-    };
-
-    // 카카오 네비게이션 URL 생성
-    const getNaviUrl = () => {
-      if (selectedAttractions.value.length < 2) return '#';
-
-      const start = selectedAttractions.value[0];
-      const goal = selectedAttractions.value[selectedAttractions.value.length - 1];
-
-      return `https://map.kakao.com/link/to/${goal.title},${goal.latitude},${goal.longitude}/from/${start.title},${start.latitude},${start.longitude}`;
-    };
-
-    // 선택된 관광지 변경 감지
-    watch(selectedAttractions, () => {
-      console.log('selectedAttractions updated:', selectedAttractions.value);
-      tripPlan.attractions = selectedAttractions.value;
-      saveTripPlanToLocal();
-    }, { deep: true });
-
-    // 컴포넌트 마운트 시 데이터 로드 및 지도 초기화
-    onMounted(async () => {
-      // Bootstrap 모달 초기화
-      const { Modal } = await import('bootstrap');
-      savedPlansModal = new Modal(savedPlansModalRef.value);
-
-      loadSelectedAttractions();
-      console.log('Immediately after loading:', selectedAttractions.value);
-
-      await nextTick();
-      console.log('After nextTick:', selectedAttractions.value);
-
-      setTimeout(() => {
-        console.log('Before initMap:', selectedAttractions.value);
-        initMap();
-        if (selectedAttractions.value.length > 0) {
-          console.log('Calculating route with:', selectedAttractions.value);
-          calculateRoute();
-        }
-      }, 100);
-    });
-
-    return {
-      selectedAttractions,
-      tripPlan,
-      totalDistance,
-      totalDuration,
-      selectedPlanIds,
-      savedPlansModalRef,
-      savedTripPlanListRef,
-      removeAttraction,
-      clearAllAttractions,
-      saveTripPlan,
-      formatDistance,
-      formatDuration,
-      getNaviUrl,
-      showSavedPlansModal,
-      loadTripPlan,
-      onPlansUpdated
-    };
+    } else if (error.request) {
+      alert('서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.')
+    } else {
+      alert('요청 처리 중 오류가 발생했습니다.')
+    }
   }
-};
+}
+
+const initMap = () => {
+  console.log('지도 초기화 중...')
+  let container = document.getElementById('map')
+
+  if (!container) {
+    console.error('맵 컨테이너를 찾을 수 없습니다.')
+    return
+  }
+
+  container.style.width = '90%'
+  container.style.height = '500px'
+  container.style.display = 'block'
+
+  if (window.kakao && window.kakao.maps) {
+    console.log('Kakao Maps API 로드됨, 맵 생성 중')
+    createMap(container)
+  } else {
+    console.log('Kakao Maps API 로드 중')
+    const script = document.createElement('script')
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_API_KEY}&libraries=services&autoload=false`
+    script.async = true
+    script.onload = () => {
+      window.kakao.maps.load(() => {
+        console.log('Kakao Maps API 로드 성공')
+        createMap(container)
+      })
+    }
+    script.onerror = () => {
+      console.error('Kakao Maps SDK 로드 실패')
+    }
+    document.head.appendChild(script)
+  }
+}
+
+const createMap = (container) => {
+  const options = {
+    center: new window.kakao.maps.LatLng(36.2, 127.9),
+    level: 13
+  }
+
+  map.value = new window.kakao.maps.Map(container, options)
+  console.log('Map created:', map.value)
+
+  if (selectedAttractions.value.length > 0) {
+    console.log('Displaying markers for attractions:', selectedAttractions.value)
+    displayMarkers()
+    if (selectedAttractions.value.length > 1) {
+      calculateRouteWithAPI()
+    }
+  }
+}
+
+// 마커 표시 (출발지/목적지/경유지만)
+const displayMarkers = () => {
+  console.log('Displaying markers...')
+  clearMarkers()
+
+  const bounds = new window.kakao.maps.LatLngBounds()
+
+  selectedAttractions.value.forEach((attraction, index) => {
+    const position = new window.kakao.maps.LatLng(
+      attraction.latitude,
+      attraction.longitude
+    )
+
+    // 마커 아이콘 설정 (출발지/목적지/경유지 구분)
+    let markerImageSrc = ''
+    let markerSize = new window.kakao.maps.Size(24, 35)
+
+    if (index === 0) {
+      // 출발지 - 녹색
+      markerImageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_green.png'
+    } else if (index === selectedAttractions.value.length - 1) {
+      // 목적지 - 빨간색
+      markerImageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png'
+    } else {
+      // 경유지 - 파란색
+      markerImageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_blue.png'
+    }
+
+    const markerImage = new window.kakao.maps.MarkerImage(
+      markerImageSrc,
+      markerSize
+    )
+
+    const marker = new window.kakao.maps.Marker({
+      position: position,
+      map: map.value,
+      image: markerImage
+    })
+
+    const iwContent = `
+      <div style="padding:5px;font-size:12px;width:150px;text-align:center;">
+        <b>${index + 1}. ${attraction.title}</b>
+      </div>
+    `
+
+    const infowindow = new window.kakao.maps.InfoWindow({
+      content: iwContent
+    })
+
+    infowindow.open(map.value, marker)
+    markers.value.push(marker)
+    bounds.extend(position)
+  })
+
+  if (selectedAttractions.value.length > 0) {
+    map.value.setBounds(bounds)
+    console.log('Map bounds set')
+  }
+}
+
+// 마커 제거
+const clearMarkers = () => {
+  console.log('Clearing markers...')
+  markers.value.forEach(marker => {
+    marker.setMap(null)
+  })
+  markers.value = []
+
+  if (polyline.value) {
+    polyline.value.setMap(null)
+    polyline.value = null
+  }
+}
+
+// 거리 포맷 (미터 -> km)
+const formatDistance = (distanceInMeters) => {
+  if (!distanceInMeters) return '0km'
+  const km = distanceInMeters / 1000
+  return `${km.toFixed(1)}km`
+}
+
+// 소요 시간 포맷 (초 -> 시간/분)
+const formatDuration = (durationInSeconds) => {
+  if (!durationInSeconds) return '0분'
+
+  const hours = Math.floor(durationInSeconds / 3600)
+  const minutes = Math.floor((durationInSeconds % 3600) / 60)
+
+  if (hours > 0) {
+    return `${hours}시간 ${minutes}분`
+  } else {
+    return `${minutes}분`
+  }
+}
+
+// 통행료 포맷
+const formatCurrency = (amount) => {
+  if (!amount) return '0원'
+  return `${amount.toLocaleString()}원`
+}
+
+// 카카오 네비게이션 URL 생성
+const getNaviUrl = () => {
+  if (selectedAttractions.value.length < 2) return '#'
+
+  const start = selectedAttractions.value[0]
+  const goal = selectedAttractions.value[selectedAttractions.value.length - 1]
+
+  return `https://map.kakao.com/link/to/${goal.title},${goal.latitude},${goal.longitude}/from/${start.title},${start.latitude},${start.longitude}`
+}
+
+// 선택된 관광지 변경 감지
+watch(selectedAttractions, () => {
+  console.log('selectedAttractions updated:', selectedAttractions.value)
+  tripPlan.attractions = selectedAttractions.value
+  saveTripPlanToLocal()
+}, { deep: true })
+
+// 컴포넌트 마운트 시 데이터 로드 및 지도 초기화
+onMounted(async () => {
+  console.log('초기 상태 확인 - routeLoading:', routeLoading.value, 'routeError:', routeError.value)
+  routeLoading.value = false
+  routeError.value = false
+  const { Modal } = await import('bootstrap')
+  savedPlansModal = new Modal(savedPlansModalRef.value)
+  loadSelectedAttractions()
+  await nextTick()
+  initMap()
+})
 </script>
 
 <style scoped>
@@ -765,5 +964,90 @@ export default {
 
 .modal-dialog {
   max-width: 1200px;
+}
+
+/* 지도 컨테이너 및 오버레이 스타일 */
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 500px;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  border-radius: 0.375rem;
+}
+
+.map-overlay-error {
+  background-color: rgba(248, 249, 250, 0.95);
+}
+
+.overlay-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+.overlay-content .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+.overlay-content i {
+  color: #f39c12;
+}
+
+/* 경로 정보 박스 스타일 개선 */
+.route-info .alert {
+  border-left: 4px solid #4361ee;
+  background-color: #f8f9ff;
+  border-color: #e3f2fd;
+}
+
+.route-info .alert-warning {
+  border-left-color: #f39c12;
+  background-color: #fffbf0;
+}
+
+/* 지도 컨테이너 스타일 */
+#map {
+  border-radius: 0.375rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 반응형 조정 */
+@media (max-width: 768px) {
+  .selected-list {
+    max-height: 300px;
+  }
+
+  .map-container {
+    height: 300px;
+  }
+
+  #map {
+    height: 300px !important;
+  }
+
+  .route-info .d-flex {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .route-info .d-flex > div {
+    text-align: center;
+  }
+
+  .overlay-content {
+    padding: 1rem;
+  }
 }
 </style>

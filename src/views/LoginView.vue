@@ -74,76 +74,61 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
+<script setup>
+import { ref, reactive } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 
-export default {
-  name: 'LoginView',
-  setup() {
-const router = useRouter();
-const route = useRoute();
-const authStore = useAuthStore();
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
 
-    // 로그인 상태
-    const loading = ref(false);
-    const message = ref('');
-    const messageType = ref('');
-    const showPassword = ref(false);
+// 로그인 상태
+const loading = ref(false)
+const message = ref('')
+const messageType = ref('')
+const showPassword = ref(false)
 
-    // 로그인 폼 데이터
-    const credentials = reactive({
-      id: '',
-      password: ''
-    });
+// 로그인 폼 데이터
+const credentials = reactive({
+  id: '',
+  password: ''
+})
 
-    // 비밀번호 표시 토글
-    const togglePasswordVisibility = () => {
-      showPassword.value = !showPassword.value;
-    };
+// 비밀번호 표시 토글
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value
+}
 
-    // 로그인 처리
-    const login = async () => {
-      try {
-        loading.value = true;
-        message.value = '';
+// 로그인 처리
+const login = async () => {
+  try {
+    loading.value = true
+    message.value = ''
 
-        const success = await authStore.login(credentials.id, credentials.password);
-        if (success) {
-            const redirectPath = route.query.redirect || '/';
-            router.push(redirectPath);
-          } else {
-            message.value = '아이디 또는 비밀번호가 일치하지 않습니다.';
-            messageType.value = 'error';
-          }
-        loading.value = false;
-      } catch (error) {
-        console.error('로그인 실패:', error);
+    const success = await authStore.login(credentials.id, credentials.password)
+    if (success) {
+      const redirectPath = route.query.redirect || '/'
+      router.push(redirectPath)
+    } else {
+      message.value = '아이디 또는 비밀번호가 일치하지 않습니다.'
+      messageType.value = 'error'
+    }
+    loading.value = false
+  } catch (error) {
+    console.error('로그인 실패:', error)
 
-        if (error.response && error.response.status === 401) {
-          message.value = '아이디 또는 비밀번호가 일치하지 않습니다.';
-        } else {
-          message.value = '로그인 처리 중 오류가 발생했습니다.';
-        }
+    if (error.response && error.response.status === 401) {
+      message.value = '아이디 또는 비밀번호가 일치하지 않습니다.'
+    } else {
+      message.value = '로그인 처리 중 오류가 발생했습니다.'
+    }
 
-        messageType.value = 'error';
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    return {
-      credentials,
-      loading,
-      message,
-      messageType,
-      showPassword,
-      login,
-      togglePasswordVisibility
-    };
+    messageType.value = 'error'
+  } finally {
+    loading.value = false
   }
-};
+}
 </script>
 
 <style scoped>

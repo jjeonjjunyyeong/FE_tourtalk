@@ -82,79 +82,68 @@
   </div>
 </template>
 
-<script>
-import { computed } from 'vue';
+<script setup>
+import { computed, defineEmits, defineProps } from 'vue'
 
-export default {
-  name: 'TripPlanCard',
-  props: {
-    tripPlan: {
-      type: Object,
-      required: true
-    },
-    editable: {
-      type: Boolean,
-      default: false
-    },
-    showAttractionList: {
-      type: Boolean,
-      default: true
-    }
+const props = defineProps({
+  tripPlan: {
+    type: Object,
+    required: true
   },
-  emits: ['view', 'edit', 'start'],
-  setup(props) {
-    // 관광지 개수 계산
-    const attractionCount = computed(() => {
-      return props.tripPlan.attractions?.length || 0;
-    });
-
-    // 첫 번째 관광지 이미지 (대표 이미지가 없을 경우 사용)
-    const firstAttractionImage = computed(() => {
-      if (props.tripPlan.attractions && props.tripPlan.attractions.length > 0) {
-        return props.tripPlan.attractions[0].firstImage1;
-      }
-      return null;
-    });
-
-    // 표시할 관광지 목록 (최대 3개)
-    const limitedAttractions = computed(() => {
-      if (!props.tripPlan.attractions) return [];
-      return props.tripPlan.attractions.slice(0, 3);
-    });
-
-    // 날짜 포맷팅 (YYYY-MM-DD -> YYYY.MM.DD)
-    const formatDate = (dateString) => {
-      if (!dateString) return '날짜 정보 없음';
-
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-
-      return `${year}.${month}.${day}`;
-    };
-
-    // 날짜 범위 포맷팅
-    const formatDateRange = (startDate, endDate) => {
-      const start = formatDate(startDate);
-      const end = formatDate(endDate);
-
-      if (start === end) {
-        return start;
-      }
-
-      return `${start} - ${end}`;
-    };
-
-    return {
-      attractionCount,
-      firstAttractionImage,
-      limitedAttractions,
-      formatDate,
-      formatDateRange
-    };
+  editable: {
+    type: Boolean,
+    default: false
+  },
+  showAttractionList: {
+    type: Boolean,
+    default: true
   }
-};
+})
+
+const emit = defineEmits(['view', 'edit', 'start'])
+
+// 관광지 개수 계산
+const attractionCount = computed(() => {
+  return props.tripPlan.attractions?.length || 0
+})
+
+// 첫 번째 관광지 이미지 (대표 이미지가 없을 경우 사용)
+const firstAttractionImage = computed(() => {
+  if (props.tripPlan.attractions && props.tripPlan.attractions.length > 0) {
+    return props.tripPlan.attractions[0].firstImage1
+  }
+  return null
+})
+
+// 표시할 관광지 목록 (최대 3개)
+const limitedAttractions = computed(() => {
+  if (!props.tripPlan.attractions) return []
+  return props.tripPlan.attractions.slice(0, 3)
+})
+
+// 날짜 포맷팅 (YYYY-MM-DD -> YYYY.MM.DD)
+const formatDate = (dateString) => {
+  if (!dateString) return '날짜 정보 없음'
+
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}.${month}.${day}`
+}
+
+// 날짜 범위 포맷팅
+const formatDateRange = (startDate, endDate) => {
+  const start = formatDate(startDate)
+  const end = formatDate(endDate)
+
+  if (start === end) {
+    return start
+  }
+
+  return `${start} - ${end}`
+}
 </script>
 
 <style scoped>
@@ -222,8 +211,8 @@ export default {
 
 .description {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  box-orient: vertical;
   overflow: hidden;
   font-size: 0.9rem;
   color: #6c757d;

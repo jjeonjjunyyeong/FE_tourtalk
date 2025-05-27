@@ -11,7 +11,9 @@ export default defineConfig({
   },
   define: {
     // 파일 업로드 경로
-    __API_BASE_URL__: JSON.stringify('http://localhost:8080'), 
+    __API_BASE_URL__: JSON.stringify('http://localhost:8080'),
+    __KAKAO_MAP_API_KEY__: JSON.stringify(process.env.KAKAO_MAP_API_KEY),
+    __KAKAO_REST_API_KEY__: JSON.stringify(process.env.KAKAO_REST_API_KEY) ,
   },
   server: {
     port: 5173
@@ -20,7 +22,8 @@ export default defineConfig({
   esbuild: {
     jsxFactory: 'h',
     jsxFragment: 'Fragment'
-  }
+  },
+  
 });
 
 
