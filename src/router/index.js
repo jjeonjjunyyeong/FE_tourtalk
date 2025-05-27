@@ -75,6 +75,10 @@ const routes = [
     name: 'HotplaceDetail',
     component: () => import('@/views/hotplaces/HotplaceDetailView.vue'),
     props: true
+
+    path: '/profile',
+    name: 'MyPageView',
+    component: () => import('@/views/MyPageView.vue'),
   },
   {
     path: '/:pathMatch(.*)*',
@@ -103,7 +107,25 @@ const routes = [
     component: () => import('@/views/boards/BoardWriteView.vue'),
     meta: { requiresAuth: true }
   },
-];
+  {
+    path: '/products/manage',
+    name: 'ProductManage',
+    component: () => import('@/views/products/ProductManageView.vue'),
+    meta: { requiresAuth: true, role: 'CURATOR' },
+  },
+  {
+    path: '/products/create',
+    name: 'ProductCreate',
+    component: () => import('@/views/products/ProductCreateView.vue'),
+    meta: { requiresAuth: true, role: 'CURATOR' },
+  },
+  {
+    path: '/admin/users',
+    name: 'UserManage',
+    component: () => import('@/views/admin/UserManageView.vue'),
+    meta: { requiresAuth: true, role: 'ADMIN' },
+  },
+]
 
 const router = createRouter({
   // 여기가 변경된 부분

@@ -44,7 +44,7 @@
           <div class="mb-3 d-flex justify-content-between border-bottom pb-3">
             <div>
               <span class="fw-bold me-2">작성자:</span>
-              {{ board.writerUserId || `사용자#${board.writerId}` }}
+              {{ board.writerNickname || `사용자#${board.writerId}` }}
               <span v-if="board.status !== 'ACTIVE'" class="ms-2 badge bg-warning">
                 {{ getStatusLabel(board.status) }}
               </span>
@@ -66,9 +66,9 @@
           <div v-if="board.filePath" class="mt-3 mb-4 p-3 bg-light rounded">
             <div class="d-flex align-items-center">
               <i class="bi bi-file-earmark me-2"></i>
-              <a :href="board.filePath" target="_blank" class="text-decoration-none">
-                첨부 파일 다운로드
-              </a>
+              <a :href="board.filePath" target="_blank" class="text-decoration-none"
+                >첨부 파일 다운로드</a
+              >
             </div>
           </div>
 
@@ -85,8 +85,6 @@
               >
                 <i class="bi bi-pencil me-1"></i> 수정
               </router-link>
-
-              <!-- 삭제 버튼 컴포넌트 -->
               <delete-board-button
                 :postId="board.postId"
                 :isAuthor="isAuthor"
@@ -100,13 +98,20 @@
 
       <!-- 댓글 섹션 -->
       <div v-if="board && !loading" class="card shadow-sm mt-4">
-        <div class="card-header bg-light">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
           <h5 class="mb-0">
-            댓글 <span class="badge bg-secondary">{{ board.commentCount || 0 }}</span>
+            댓글 <span class="badge bg-secondary">{{ comments.length }}</span>
           </h5>
         </div>
         <div class="card-body">
-          <p class="text-muted">댓글 기능은 아직 준비 중입니다.</p>
+          <comment-form :postId="board.postId" @comment-added="loadComments" />
+          <hr />
+          <comment-list
+            :comments="comments"
+            :boardWriterId="board.writerId"
+            @comment-updated="loadComments"
+            @delete-comment="handleDeleteComment"
+          />
         </div>
       </div>
     </div>
@@ -117,13 +122,18 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import commentService from '@/services/comment'
 import boardService from '@/services/board'
 import DeleteBoardButton from '@/components/board/DeleteBoardButton.vue'
+import CommentList from '@/components/comment/CommentList.vue'
+import CommentForm from '@/components/comment/CommentForm.vue'
 
 export default {
   name: 'BoardDetailView',
   components: {
     DeleteBoardButton,
+    CommentForm,
+    CommentList,
   },
   setup() {
     const route = useRoute()
@@ -134,11 +144,10 @@ export default {
     const message = ref('')
     const messageType = ref('')
     const authStore = useAuthStore()
+    const comments = ref([])
 
-    // 현재 사용자 정보
     const currentUserId = computed(() => authStore.mno)
 
-    // 로그인 상태 확인 및 사용자 정보 로드
     const checkAuthStatus = () => {
       if (!authStore.isLogin) {
         alert('로그인이 필요합니다.')
@@ -146,12 +155,8 @@ export default {
       }
     }
 
-    // 현재 사용자가 게시글 작성자인지 확인
-    const isAuthor = computed(() => {
-      return String(board.value?.writerId) === String(currentUserId.value)
-    })
+    const isAuthor = computed(() => String(board.value?.writerId) === String(currentUserId.value))
 
-    // 게시글 상태 레이블 반환
     const getStatusLabel = (status) => {
       switch (status) {
         case 'ACTIVE':
@@ -165,58 +170,27 @@ export default {
       }
     }
 
-    // 작성자 ID로 이름 찾기 (실제로는 API 호출 또는 스토어에서 처리)
-    const getWriterName = () => {
-      return board.value?.writerNickname || `사용자#${board.value?.writerId}`
-    }
-
-    // HTML 태그 필터링 (악의적인 스크립트 방지)
     const sanitizeHTML = (html) => {
       if (!html) return ''
-
-      // 실제 프로덕션에서는 DOMPurify 등의 라이브러리 사용 권장
       return html
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         .replace(/javascript:/gi, '')
     }
 
-    // 날짜 포맷팅
     const formatDate = (dateString) => {
       if (!dateString) return ''
-
       const date = new Date(dateString)
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
-
-      return `${year}-${month}-${day} ${hours}:${minutes}`
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+        date.getDate()
+      ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
+        date.getMinutes()
+      ).padStart(2, '0')}`
     }
 
-    // 삭제 성공 처리
-    const onDeleteSuccess = () => {
-      message.value = '게시글이 성공적으로 삭제되었습니다.'
-      messageType.value = 'success'
-
-      // 잠시 후 목록 페이지로 이동
-      setTimeout(() => {
-        router.push('/boards')
-      }, 1500)
-    }
-
-    // 삭제 오류 처리
-    const onDeleteError = (error) => {
-      message.value = '게시글 삭제 중 오류가 발생했습니다.'
-      messageType.value = 'error'
-      console.error('삭제 오류:', error)
-    }
-
-    // 게시글 상세 정보 조회
     const fetchBoardDetail = async () => {
       const postId = Number(route.params.no)
       if (isNaN(postId)) {
-        error.value = '잘못된 게시글 ID 입니다.'
+        error.value = '잘못된 게시글 ID입니다.'
         loading.value = false
         return
       }
@@ -224,12 +198,10 @@ export default {
       try {
         loading.value = true
         const { data } = await boardService.getBoardDetail(postId)
-
         if (!data) {
           error.value = '게시글 정보를 찾을 수 없습니다.'
           return
         }
-
         board.value = data
       } catch (err) {
         console.error('게시글 상세 정보 조회 실패:', err)
@@ -239,10 +211,37 @@ export default {
       }
     }
 
-    // 컴포넌트 마운트 시 실행
-    onMounted(() => {
+    const loadComments = async () => {
+      const res = await commentService.getComments(board.value.postId)
+      comments.value = res.data
+      board.value.commentCount = comments.value.length // 동기화
+    }
+
+    const handleDeleteComment = async (commentId) => {
+      if (confirm('댓글을 삭제하시겠습니까?')) {
+        await commentService.softDeleteComment(commentId)
+        await loadComments()
+      }
+    }
+
+    const onDeleteSuccess = () => {
+      message.value = '게시글이 성공적으로 삭제되었습니다.'
+      messageType.value = 'success'
+      setTimeout(() => {
+        router.push('/boards')
+      }, 1500)
+    }
+
+    const onDeleteError = (error) => {
+      message.value = '게시글 삭제 중 오류가 발생했습니다.'
+      messageType.value = 'error'
+      console.error('삭제 오류:', error)
+    }
+
+    onMounted(async () => {
       checkAuthStatus()
-      fetchBoardDetail()
+      await fetchBoardDetail()
+      await loadComments()
     })
 
     return {
@@ -254,10 +253,12 @@ export default {
       isAuthor,
       formatDate,
       getStatusLabel,
-      getWriterName,
       sanitizeHTML,
       onDeleteSuccess,
       onDeleteError,
+      comments,
+      handleDeleteComment,
+      loadComments,
     }
   },
 }
@@ -272,7 +273,6 @@ export default {
   min-height: 300px;
 }
 
-/* 알림 메시지 애니메이션 */
 .alert {
   transition: opacity 0.5s ease;
   animation: fadeIn 0.3s;

@@ -38,6 +38,15 @@
             </li>
             <li class="nav-item">
               <router-link class="nav-link" to="/boards" active-class="active">커뮤니티</router-link>
+
+              <router-link class="nav-link" to="/boards" active-class="active"
+                >상품 예약하기</router-link
+              >
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link" to="/boards" active-class="active"
+                >커뮤니티</router-link
+              >
             </li>
           </ul>
 
@@ -58,6 +67,20 @@
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                   <li><router-link class="dropdown-item" to="/profile">내 정보</router-link></li>
                   <li><router-link class="dropdown-item" to="/hotplaces/my">내 핫플레이스</router-link></li>
+
+                  <!-- 큐레이터 메뉴 -->
+                  <li v-if="isCurator">
+                    <router-link class="dropdown-item" to="/products/manage">상품 관리</router-link>
+                  </li>
+
+                  <!-- 관리자 메뉴 -->
+                  <li v-if="isAdmin">
+                    <router-link class="dropdown-item" to="/admin/users">회원 관리</router-link>
+                  </li>
+                  <li v-if="isAdmin">
+                    <router-link class="dropdown-item" to="/admin/posts">게시글 관리</router-link>
+                  </li>
+
                   <li><a class="dropdown-item" href="#" @click.prevent="onLogout">로그아웃</a></li>
                 </ul>
               </li>
@@ -88,6 +111,9 @@ const authStore = useAuthStore()
 // 전역 상태로부터 로그인 여부와 닉네임 가져오기
 const isLoggedIn = computed(() => authStore.isLogin)
 const userNickname = computed(() => authStore.nickname)
+const userRole = computed(() => authStore.role)
+const isCurator = computed(() => userRole.value === 'CURATOR')
+const isAdmin = computed(() => userRole.value === 'ADMIN')
 const logo = ref(null)
 
 // 로그아웃 처리

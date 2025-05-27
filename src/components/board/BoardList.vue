@@ -20,28 +20,36 @@
       <table class="table table-hover">
         <thead class="table-light">
           <tr>
-            <th style="width: 10%">번호</th>
-            <th style="width: 50%">제목</th>
-            <th style="width: 15%">작성자</th>
-            <th style="width: 15%">작성일</th>
-            <th style="width: 10%">조회수</th>
+            <th class="text-center" style="width: 10%">번호</th>
+            <th class="text-center" style="width: 10%">카테고리</th>
+            <th class="text-center" style="width: 40%">제목</th>
+            <th class="text-center" style="width: 15%">작성자</th>
+            <th class="text-center" style="width: 15%">작성일</th>
+            <th class="text-center" style="width: 10%">조회수</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="board in boardList" :key="board.postId" @click="viewDetail(board.postId)" style="cursor: pointer">
-            <td>{{ board.postId }}</td>
+          <tr
+            v-for="board in boardList"
+            :key="board.postId"
+            @click="viewDetail(board.postId)"
+            style="cursor: pointer"
+          >
+            <td class="text-center">{{ board.postId }}</td>
+            <td class="text-center">
+              <span class="badge" :class="getCategoryMeta(board.category).class">
+                {{ getCategoryMeta(board.category).label }}
+              </span>
+            </td>
             <td class="text-start">
               {{ board.title }}
               <span v-if="board.commentCount > 0" class="ms-2 badge bg-secondary">
                 {{ board.commentCount }}
               </span>
-              <span v-if="board.status !== 'ACTIVE'" class="ms-2 badge bg-warning">
-                {{ getStatusLabel(board.status) }}
-              </span>
             </td>
-            <td>{{ getWriterName(board.writerId) }}</td>
-            <td>{{ formatDate(board.createdAt) }}</td>
-            <td>{{ board.viewCount }}</td>
+            <td class="text-center">{{ board.writerNickname }}</td>
+            <td class="text-center">{{ formatDate(board.createdAt) }}</td>
+            <td class="text-center">{{ board.viewCount }}</td>
           </tr>
         </tbody>
       </table>
@@ -66,8 +74,11 @@
           </li>
 
           <!-- 페이지 번호 -->
-          <li v-for="page in displayedPages" :key="page"
-              :class="['page-item', { active: page === pageInfo.pageNumber }]">
+          <li
+            v-for="page in displayedPages"
+            :key="page"
+            :class="['page-item', { active: page === pageInfo.pageNumber }]"
+          >
             <a class="page-link" href="#" @click.prevent="onPageChange(page)">
               {{ page }}
             </a>
@@ -93,105 +104,95 @@
 </template>
 
 <script>
-import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'BoardList',
   props: {
     boardList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     pageInfo: {
       type: Object,
-      default: null
+      default: null,
     },
     loading: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['page-change'],
   setup(props, { emit }) {
-    const router = useRouter();
-    
-    // 임시로 사용자 정보를 저장 (실제로는 API 호출 또는 스토어에서 관리)
-    const userMap = ref({
-      1: '관리자',
-      2: '홍길동',
-      3: '김철수'
-      // 실제 환경에서는 API를 통해 사용자 정보를 가져오는 것이 좋음
-    });
+    const router = useRouter()
 
     // 화면에 표시할 페이지 번호 계산
     const displayedPages = computed(() => {
-      if (!props.pageInfo) return [];
+      if (!props.pageInfo) return []
 
-      const { pageNumber, startPage, endPage } = props.pageInfo;
-      let pages = [];
+      const { pageNumber, startPage, endPage } = props.pageInfo
+      let pages = []
 
       for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
+        pages.push(i)
       }
 
-      return pages;
-    });
+      return pages
+    })
 
-    // 게시글 상태 레이블 반환
-    const getStatusLabel = (status) => {
-      switch (status) {
-        case 'ACTIVE':
-          return '공개';
-        case 'INACTIVE':
-          return '비공개';
-        case 'DELETED':
-          return '삭제됨';
+    // 게시글 카테고리 레이블 반환
+    const getCategoryMeta = (category) => {
+      switch (category) {
+        case 'FREE':
+          return { label: '자유', class: 'bg-success' }
+        case 'QNA':
+          return { label: 'Q&A', class: 'bg-primary' }
+        case 'INQUIRY':
+          return { label: '문의', class: 'bg-warning text-dark' }
+        case 'NOTICE':
+          return { label: '공지', class: 'bg-danger' }
+        case 'REVIEW':
+          return { label: '리뷰', class: 'bg-secondary' }
         default:
-          return '알 수 없음';
+          return { label: '기타', class: 'bg-secondary' }
       }
-    };
-
-    // 작성자 ID로 이름 찾기 (실제로는 API 호출 또는 스토어에서 처리)
-    const getWriterName = (writerId) => {
-      return userMap.value[writerId] || `사용자#${writerId}`;
-    };
+    }
 
     // 페이지 변경 이벤트 핸들러
     const onPageChange = (page) => {
-      if (page < 1 || page > props.pageInfo.totalPages) return;
-      if (page === props.pageInfo.pageNumber) return;
+      if (page < 1 || page > props.pageInfo.totalPages) return
+      if (page === props.pageInfo.pageNumber) return
 
-      emit('page-change', page);
-    };
+      emit('page-change', page)
+    }
 
     // 게시글 상세 페이지로 이동
     const viewDetail = (postId) => {
-      router.push(`/boards/${postId}`);
-    };
+      router.push(`/boards/${postId}`)
+    }
 
     // 날짜 포맷팅
     const formatDate = (dateString) => {
-      if (!dateString) return '';
-      
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      
-      return `${year}-${month}-${day}`;
-    };
+      if (!dateString) return ''
+
+      const date = new Date(dateString)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+
+      return `${year}-${month}-${day}`
+    }
 
     return {
       displayedPages,
       onPageChange,
       viewDetail,
       formatDate,
-      getStatusLabel,
-      getWriterName
-    };
-  }
-};
+      getCategoryMeta,
+    }
+  },
+}
 </script>
 
 <style scoped>
