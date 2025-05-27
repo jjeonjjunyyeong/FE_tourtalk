@@ -16,15 +16,14 @@
     "bootstrap-vue-3": "^0.5.1",
     "core-js": "^3.8.3",
     "pinia": "^3.0.2",
+    "pinia-plugin-persistedstate": "^4.3.0",
     "vue": "^3.2.13",
     "vue-draggable-next": "^2.2.1",
-    "vue-router": "^4.0.3"
+    "vue-router": "^4.0.3",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.16",
-    "@babel/eslint-parser": "^7.12.16",
     "@vitejs/plugin-vue": "^5.2.4",
-    "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-plugin-router": "~5.0.0",
     "@vue/cli-service": "~5.0.0",

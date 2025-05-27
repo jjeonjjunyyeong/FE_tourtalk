@@ -42,29 +42,22 @@
   </div>
 </template>
 
-<script>
-import { useRouter } from 'vue-router';
+<script setup>
+import { useRouter } from 'vue-router'
+import { defineProps } from 'vue'
 
-export default {
-  name: 'AttractionCard',
-  props: {
-    attraction: {
-      type: Object,
-      required: true
-    }
-  },
-  setup(props) {
-    const router = useRouter();
-
-    const navigateToDetail = () => {
-      router.push(`/attractions/${props.attraction.no}`);
-    };
-
-    return {
-      navigateToDetail
-    };
+const props = defineProps({
+  attraction: {
+    type: Object,
+    required: true
   }
-};
+})
+
+const router = useRouter()
+
+const navigateToDetail = () => {
+  router.push(`/attractions/${props.attraction.no}`)
+}
 </script>
 
 <style scoped>

@@ -4,7 +4,7 @@
       <div class="container">
         <!-- 로고 -->
         <router-link class="navbar-brand" to="/">
-          <img src="@/assets/images/logo.png" alt="TourTalk Logo" height="40" v-if="logo" />
+          <img src="@/assets/images/logo.png" alt="TourTalk Logo" height="40" v-if="logo">
           <span v-else class="h4 mb-0 text-primary font-weight-bold">TourTalk</span>
         </router-link>
 
@@ -28,17 +28,19 @@
               <router-link class="nav-link" to="/" active-class="active">홈</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/attractions" active-class="active"
-                >여행지 검색</router-link
-              >
+              <router-link class="nav-link" to="/attractions" active-class="active">여행지 검색</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/trip-plan" active-class="active"
-                >여행 계획</router-link
-              >
+              <router-link class="nav-link" to="/hotplaces" active-class="active">핫플레이스</router-link>
             </li>
             <li class="nav-item">
+              <router-link class="nav-link" to="/trip-plan" active-class="active">여행 계획</router-link>
+            </li>
+            <li class="nav-item">
+
               <router-link class="nav-link" to="/products/booking" active-class="active"
+              <router-link class="nav-link" to="/boards" active-class="active">커뮤니티</router-link>
+              <router-link class="nav-link" to="/boards" active-class="active"
                 >상품 예약하기</router-link
               >
             </li>
@@ -65,6 +67,7 @@
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                   <li><router-link class="dropdown-item" to="/profile">내 정보</router-link></li>
+                  <li><router-link class="dropdown-item" to="/hotplaces/my">내 핫플레이스</router-link></li>
 
                   <!-- 큐레이터 메뉴 -->
                   <li v-if="isCurator">
@@ -88,9 +91,7 @@
                 <router-link class="nav-link" to="/login">로그인</router-link>
               </li>
               <li class="nav-item">
-                <router-link class="btn btn-primary btn-sm mt-1" to="/register"
-                  >회원가입</router-link
-                >
+                <router-link class="btn btn-primary btn-sm mt-1" to="/register">회원가입</router-link>
               </li>
             </template>
           </ul>
