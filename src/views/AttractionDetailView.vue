@@ -69,24 +69,23 @@
                       <div class="info-value">{{ attraction.tel }}</div>
                     </div>
 
-                    <div class="info-item" v-if="attraction.homepage">
+                    <div class="info-item" v-if="extractUrlFromHtml(attraction.homepage)">
                       <div class="info-label">
                         <i class="bi bi-globe me-1"></i> 웹사이트
-                      </div>
-                      <div class="info-value">
-                        <a :href="attraction.homepage" target="_blank" rel="noopener">
-                          홈페이지 방문
-                        </a>
                       </div>
                     </div>
                   </div>
 
                   <div class="d-flex gap-2 mt-3">
-                    <button class="btn btn-outline-primary" @click="$emit('view-map')">
+                    <button class="btn btn-outline-primary" @click="openKakaoMap">
                       <i class="bi bi-map me-1"></i> 지도보기
                     </button>
-                    <button class="btn btn-primary" @click="$emit('add-to-plan')">
-                      <i class="bi bi-plus-circle me-1"></i> 여행 계획에 추가
+                    <button 
+                      v-if="extractUrlFromHtml(attraction.homepage)" 
+                      class="btn btn-outline-secondary"
+                      @click="openHomepage"
+                    >
+                      <i class="bi bi-globe me-1"></i> 홈페이지 방문
                     </button>
                   </div>
                 </div>
@@ -95,46 +94,78 @@
           </div>
 
           <!-- 상세 설명 -->
-          <div class="card shadow-sm mb-4" v-if="attraction.overview">
+          <!-- 상세 설명 카드에 AI 설명 버튼 추가 -->
+          <div class="card shadow-sm mb-4">
             <div class="card-body">
-              <h4 class="mb-3">상세 설명</h4>
-              <div class="description" v-html="sanitizeHTML(attraction.overview)"></div>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>상세 설명</h4>
+                <!-- AI 설명 보기 버튼 -->
+                <button 
+                  class="btn btn-outline-primary btn-sm"
+                  @click="showAiDescription"
+                  :disabled="aiLoading"
+                >
+                  <i v-if="!aiLoading" class="bi bi-robot me-1"></i>
+                  <span v-if="aiLoading" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                  {{ aiLoading ? 'AI 분석 중...' : 'AI 설명 보기' }}
+                </button>
+              </div>
+              
+              <div v-if="attraction.overview" class="description" v-html="sanitizeHTML(attraction.overview)"></div>
+              <p v-else class="text-muted">상세 설명이 없습니다.</p>
             </div>
           </div>
 
-          <!-- 주변 관광지 -->
-          <div class="card shadow-sm mb-4" v-if="nearbyAttractions && nearbyAttractions.length > 0">
-            <div class="card-header bg-light">
-              <h5 class="mb-0">주변 관광지</h5>
-            </div>
-            <div class="card-body">
-              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-                <div
-                  v-for="nearby in nearbyAttractions"
-                  :key="nearby.no"
-                  class="col"
-                >
-                  <div class="card h-100 nearby-card" @click="$emit('select-nearby', nearby.no)">
-                    <div class="image-container">
-                      <img
-                        v-if="nearby.firstImage1"
-                        :src="nearby.firstImage1"
-                        :alt="nearby.title"
-                        class="card-img-top"
-                      >
-                      <div v-else class="no-image">
-                        <i class="bi bi-image"></i>
+          <!-- AI 설명 모달 -->
+          <div class="modal fade" id="aiDescriptionModal" tabindex="-1" aria-hidden="true" ref="aiModalRef">
+            <div class="modal-dialog modal-lg">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">
+                    <i class="bi bi-robot me-2 text-primary"></i>
+                    AI가 분석한 {{ attraction?.title }} 설명
+                  </h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <!-- 로딩 상태 -->
+                  <div v-if="aiLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                      <span class="visually-hidden">AI 분석 중...</span>
+                    </div>
+                    <p class="text-muted">AI가 이 관광지에 대해 분석하고 있습니다...</p>
+                  </div>
+                  
+                  <!-- AI 설명 내용 -->
+                  <div v-else-if="aiDescription" class="ai-description">
+                    <div class="alert alert-info d-flex align-items-start">
+                      <i class="bi bi-info-circle me-2 mt-1"></i>
+                      <div>
+                        <strong>AI 설명</strong><br>
+                        <small class="text-muted">
+                          이 설명은 AI가 제공된 정보를 바탕으로 생성한 것입니다.
+                        </small>
                       </div>
                     </div>
-                    <div class="card-body">
-                      <h6 class="card-title text-truncate" :title="nearby.title">
-                        {{ nearby.title }}
-                      </h6>
-                      <p class="card-text small text-muted">
-                        {{ nearby.contentTypeName }} | {{ nearby.gugun }}
-                      </p>
+                    
+                    <div class="ai-content">
+                      <p style="white-space: pre-line; line-height: 1.6;">{{ aiDescription }}</p>
                     </div>
                   </div>
+                  
+                  <!-- 오류 상태 -->
+                  <div v-else-if="aiError" class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle text-warning mb-3" style="font-size: 3rem;"></i>
+                    <h5>AI 설명을 불러올 수 없습니다</h5>
+                    <p class="text-muted">{{ aiError }}</p>
+                    <button class="btn btn-outline-primary" @click="showAiDescription">
+                      <i class="bi bi-arrow-clockwise me-1"></i>
+                      다시 시도
+                    </button>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
                 </div>
               </div>
             </div>
@@ -220,9 +251,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, defineProps, defineEmits, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import attractionService from '@/services/attraction'
+import aiService from '@/services/ai'
 
 const props = defineProps({
   no: {
@@ -243,12 +275,103 @@ const isAddedToPlan = ref(false)
 const toastMessage = ref('')
 const showToastMessage = ref(false)
 
-// HTML 태그 필터링 (악의적인 스크립트 방지)
+// AI 관련 상태 변수들
+const aiLoading = ref(false)
+const aiDescription = ref('')
+const aiError = ref('')
+const aiModalRef = ref(null)
+let aiModal = null
+
+// HTML에서 URL 추출 함수
+const extractUrlFromHtml = (htmlString) => {
+  if (!htmlString) return null
+  
+  const hrefMatch = htmlString.match(/href="([^"]*)"/)
+  if (hrefMatch && hrefMatch[1]) {
+    return decodeURIComponent(hrefMatch[1])
+  }
+  
+  const urlMatch = htmlString.match(/(https?:\/\/[^\s<>"]+)/)
+  if (urlMatch && urlMatch[1]) {
+    return urlMatch[1]
+  }
+  
+  return null
+}
+
+// 카카오맵 열기
+const openKakaoMap = () => {
+  if (!attraction.value) return
+  
+  if (attraction.value.latitude && attraction.value.longitude) {
+    const kakaoMapUrl = `https://map.kakao.com/link/map/${encodeURIComponent(attraction.value.title)},${attraction.value.latitude},${attraction.value.longitude}`
+    window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer')
+  } else {
+    alert('위치 정보가 없어 지도를 표시할 수 없습니다.')
+  }
+}
+
+// 홈페이지 열기
+const openHomepage = () => {
+  if (!attraction.value) return
+  
+  const extractedUrl = extractUrlFromHtml(attraction.value.homepage)
+  if (extractedUrl) {
+    window.open(extractedUrl, '_blank', 'noopener,noreferrer')
+  }
+}
+
+// HTML 태그 필터링
 const sanitizeHTML = (html) => {
-  // 실제 프로덕션에서는 DOMPurify 등의 라이브러리 사용 권장
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/javascript:/gi, '')
+}
+
+// AI 설명 표시 함수 (안전한 모달 처리)
+const showAiDescription = async () => {
+  if (!attraction.value) return
+  
+  // 모달이 초기화되지 않았다면 초기화 시도
+  if (!aiModal && aiModalRef.value) {
+    try {
+      const { Modal } = await import('bootstrap')
+      aiModal = new Modal(aiModalRef.value)
+    } catch (error) {
+      console.error('Bootstrap Modal 초기화 실패:', error)
+      return
+    }
+  }
+  
+  // 모달 표시
+  if (aiModal) {
+    aiModal.show()
+  }
+  
+  // 이미 AI 설명이 있으면 다시 로드하지 않음
+  if (aiDescription.value && !aiError.value) {
+    return
+  }
+  
+  try {
+    aiLoading.value = true
+    aiError.value = ''
+    aiDescription.value = ''
+    
+    // AI 서비스 호출
+    const attractionName = attraction.value.title
+    const address = `${attraction.value.sido} ${attraction.value.gugun} ${attraction.value.addr || ''}`
+    const overview = attraction.value.overview || ''
+    
+    const { data } = await aiService.attractionInfo(attractionName, address, overview)
+    aiDescription.value = data.message
+    
+  } catch (error) {
+    console.error('AI 설명 생성 실패:', error)
+    aiError.value = '현재 AI 기능을 사용할 수 없습니다.'
+  } finally {
+    aiLoading.value = false
+  }
 }
 
 // 관광지 상세 정보 조회
@@ -272,7 +395,6 @@ const fetchAttractionDetail = async () => {
     attraction.value = data.attraction
     nearbyAttractions.value = data.nearbyAttractions || []
 
-    // 지도 초기화 (다음 틱에서 실행)
     setTimeout(() => {
       initMap()
     }, 100)
@@ -288,14 +410,11 @@ const fetchAttractionDetail = async () => {
 const initMap = () => {
   if (!attraction.value || !attraction.value.latitude || !attraction.value.longitude) return
 
-  // 카카오맵 API가 로드되었는지 확인
   if (window.kakao && window.kakao.maps) {
     createMap()
   } else {
-    // 카카오맵 API 동적 로드
     const script = document.createElement('script')
     script.onload = () => {
-      // API 로드 후 지도 생성
       const callback = () => createMap()
       window.kakao.maps.load(callback)
     }
@@ -319,7 +438,6 @@ const createMap = () => {
 
   map.value = new window.kakao.maps.Map(container, options)
 
-  // 마커 생성
   const markerPosition = new window.kakao.maps.LatLng(
     attraction.value.latitude,
     attraction.value.longitude
@@ -329,16 +447,13 @@ const createMap = () => {
     position: markerPosition
   })
 
-  // 마커 지도에 표시
   marker.setMap(map.value)
 
-  // 인포윈도우 생성
   const iwContent = `<div style="padding:5px;">${attraction.value.title}</div>`
   const infowindow = new window.kakao.maps.InfoWindow({
     content: iwContent
   })
 
-  // 마커에 인포윈도우 표시
   infowindow.open(map.value, marker)
 }
 
@@ -354,7 +469,6 @@ const showToast = () => {
   toastMessage.value = generateToastMessage()
   showToastMessage.value = true
   
-  // 2초 후 자동으로 숨기기
   setTimeout(() => {
     showToastMessage.value = false
   }, 2000)
@@ -373,18 +487,15 @@ const toggleTripPlan = () => {
   const existingIndex = tripPlan.attractions.findIndex(item => item.no === attraction.value.no)
 
   if (existingIndex !== -1) {
-    // 이미 추가된 경우 - 삭제
     tripPlan.attractions.splice(existingIndex, 1)
     localStorage.setItem('tripPlan', JSON.stringify(tripPlan))
     isAddedToPlan.value = false
   } else {
-    // 추가되지 않은 경우 - 추가
     tripPlan.attractions.push(attraction.value)
     localStorage.setItem('tripPlan', JSON.stringify(tripPlan))
     isAddedToPlan.value = true
   }
 
-  // 토스트 메시지 보여주기
   showToast()
 }
 
@@ -401,11 +512,30 @@ const checkTripPlanStatus = () => {
 watch(attraction, (newAttraction) => {
   if (newAttraction) {
     checkTripPlanStatus()
+    // 새로운 관광지로 변경되면 AI 설명 초기화
+    aiDescription.value = ''
+    aiError.value = ''
   }
 })
 
-// 컴포넌트 마운트 시 데이터 조회
-onMounted(fetchAttractionDetail)
+// 컴포넌트 마운트 시 초기화 (수정된 부분)
+onMounted(async () => {
+  // DOM이 완전히 렌더링될 때까지 기다림
+  await nextTick()
+  
+  // Bootstrap 모달 초기화
+  try {
+    const { Modal } = await import('bootstrap')
+    if (aiModalRef.value) {
+      aiModal = new Modal(aiModalRef.value)
+    }
+  } catch (error) {
+    console.error('Bootstrap Modal 초기화 실패:', error)
+  }
+  
+  // 데이터 조회
+  fetchAttractionDetail()
+})
 </script>
 
 <style scoped>

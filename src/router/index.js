@@ -75,7 +75,8 @@ const routes = [
     name: 'HotplaceDetail',
     component: () => import('@/views/hotplaces/HotplaceDetailView.vue'),
     props: true
-
+  },
+  {
     path: '/profile',
     name: 'MyPageView',
     component: () => import('@/views/MyPageView.vue'),

@@ -4,6 +4,7 @@
     <app-banner v-if="showBanner" />
     <router-view class="main-content" />
     <app-footer />
+    <trip-chat-widget />
   </div>
 </template>
 
@@ -11,6 +12,8 @@
 import AppHeader from '@/components/common/AppHeader.vue'
 import AppFooter from '@/components/common/AppFooter.vue'
 import AppBanner from '@/components/common/AppBanner.vue'
+import TripChatWidget from '@/components/ai/TripChatWidget.vue'
+
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
