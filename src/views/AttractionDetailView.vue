@@ -364,7 +364,7 @@ const showAiDescription = async () => {
     const overview = attraction.value.overview || ''
     
     const { data } = await aiService.attractionInfo(attractionName, address, overview)
-    aiDescription.value = data.message
+    aiDescription.value = data.message || data.data?.message || '[응답 파싱 실패]';
     
   } catch (error) {
     console.error('AI 설명 생성 실패:', error)

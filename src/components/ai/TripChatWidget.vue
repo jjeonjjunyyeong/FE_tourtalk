@@ -147,7 +147,7 @@ export default {
 
         const aiMessage = {
           type: 'ai-message',
-          content: data.message,
+          content: data.message || data.data?.message || '[응답 파싱 실패]',
           timestamp: new Date()
         };
 
